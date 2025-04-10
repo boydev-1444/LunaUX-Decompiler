@@ -1,1617 +1,832 @@
-local function bg(ff,sb)
-	local oh,uc,he,ee,Cc,we,wa,He
-	oh,wa={[-13687]=-6518,[-30870]=31342,[2591]=-19059,[650]=-8329,[3237]=22086,[-7655]=-25631,[8686]=-25631,[16794]=-4583,[-19279]=22086,[-11379]=30294,[26763]=-6518,[25000]=7838,[28520]=-11745,[18643]=18529},function(Hg)
-		return oh[Hg- -28226]
+
+
+local AppSettings = {
+	["LastPatch"] = 1743035151,
+	["AppMode"] = "early alpha",
+	["Author"] = "boydev1444",
+	["GlobalVersion"] = 1,
+	["MaxOptimizedBytecodeLen"] = 1954,
+	["ObligatoryLuauVersion"] = 6,
+	["SupportedModes"] = {
+		"advanced",
+		"disassemble"
+	},
+	["NoteTypes"] = {
+		["e"] = "error",
+		["w"] = "warning",
+		["p"] = "note"
+	},
+	["DefaultTypesVersion"] = 3,
+	["MissingProtoName"] = "(MISSING)",
+	["MainProtoName"] = "(MAIN)",
+}
+
+local DefaultOptions = {
+	["OptimizeBytecode"] = true,
+	["ShowDebugInfo"] = true,
+	["DecompilerMode"] = "advanced"
+}
+
+local ARG_RENAME = "arg%d"
+local VariableRename = "R%d"
+local UpvalueRename = "%*_upvr_%d"
+
+local Luau = {
+	["OPList"] = {
+		{ "NOP", 0, 0, false },
+		{ "BREAK", 0, 0, false },
+		{ "LOADNIL", 1, 0, false },
+		{ "LOADB", 3, 0, false },
+		{ "LOADN", 4, 0, false },
+		{ "LOADK", 4, 3, false },
+		{ "MOVE", 2, 0, false },
+		{ "GETGLOBAL", 1, 1, true },
+		{ "SETGLOBAL", 1, 1, true },
+		{ "GETUPVAL", 2, 0, false },
+		{ "SETUPVAL", 2, 0, false },
+		{ "CLOSEUPVALS", 1, 0, false },
+		{ "GETIMPORT", 4, 4, true },
+		{ "GETTABLE", 3, 0, false },
+		{ "SETTABLE", 3, 0, false },
+		{ "GETTABLEKS", 3, 1, true },
+		{ "SETTABLEKS", 3, 1, true },
+		{ "GETTABLEN", 3, 0, false },
+		{ "SETTABLEN", 3, 0, false },
+		{ "NEWCLOSURE", 4, 0, false },
+		{ "NAMECALL", 3, 1, true },
+		{ "CALL", 3, 0, false },
+		{ "RETURN", 2, 0, false },
+		{ "JUMP", 4, 0, false },
+		{ "JUMPBACK", 4, 0, false },
+		{ "JUMPIF", 4, 0, false },
+		{ "JUMPIFNOT", 4, 0, false },
+		{ "JUMPIFEQ", 4, 0, true },
+		{ "JUMPIFLE", 4, 0, true },
+		{ "JUMPIFLT", 4, 0, true },
+		{ "JUMPIFNOTEQ", 4, 0, true },
+		{ "JUMPIFNOTLE", 4, 0, true },
+		{ "JUMPIFNOTLT", 4, 0, true },
+		{ "ADD", 3, 0, false },
+		{ "SUB", 3, 0, false },
+		{ "MUL", 3, 0, false },
+		{ "DIV", 3, 0, false },
+		{ "MOD", 3, 0, false },
+		{ "POW", 3, 0, false },
+		{ "ADDK", 3, 2, false },
+		{ "SUBK", 3, 2, false },
+		{ "MULK", 3, 2, false },
+		{ "DIVK", 3, 2, false },
+		{ "MODK", 3, 2, false },
+		{ "POWK", 3, 2, false },
+		{ "AND", 3, 0, false },
+		{ "OR", 3, 0, false },
+		{ "ANDK", 3, 2, false },
+		{ "ORK", 3, 2, false },
+		{ "CONCAT", 3, 0, false },
+		{ "NOT", 2, 0, false },
+		{ "MINUS", 2, 0, false },
+		{ "LENGTH", 2, 0, false },
+		{ "NEWTABLE", 2, 0, true },
+		{ "DUPTABLE", 4, 3, false },
+		{ "SETLIST", 3, 0, true },
+		{ "FORNPREP", 4, 0, false },
+		{ "FORNLOOP", 4, 0, false },
+		{ "FORGLOOP", 4, 8, true },
+		{ "FORGPREP_INEXT", 4, 0, false },
+		{ "FASTCALL3", 3, 1, true },
+		{ "FORGPREP_NEXT", 4, 0, false },
+		{ "DEP_FORGLOOP_NEXT", 0, 0, false },
+		{ "GETVARARGS", 2, 0, false },
+		{ "DUPCLOSURE", 4, 3, false },
+		{ "PREPVARARGS", 1, 0, false },
+		{ "LOADKX", 1, 1, true },
+		{ "JUMPX", 5, 0, false },
+		{ "FASTCALL", 3, 0, false },
+		{ "COVERAGE", 5, 0, false },
+		{ "CAPTURE", 2, 0, false },
+		{ "SUBRK", 3, 7, false },
+		{ "DIVRK", 3, 7, false },
+		{ "FASTCALL1", 3, 0, false },
+		{ "FASTCALL2", 3, 0, true },
+		{ "FASTCALL2K", 3, 1, true },
+		{ "FORGPREP", 4, 0, false },
+		{ "JUMPXEQKNIL", 4, 5, true },
+		{ "JUMPXEQKB", 4, 5, true },
+		{ "JUMPXEQKN", 4, 6, true },
+		{ "JUMPXEQKS", 4, 6, true },
+		{ "IDIV", 3, 0, false },
+		{ "IDIVK", 3, 2, false },
+	},
+	["BytecodeTag"] = {
+		CONSTANT_NIL = 0,
+		CONSTANT_BOOLEAN = 1,
+		CONSTANT_NUMBER = 2,
+		CONSTANT_STRING = 3,
+		CONSTANT_IMPORT = 4,
+		CONSTANT_TABLE = 5,
+		CONSTANT_CLOSURE = 6,
+		CONSTANT_VECTOR = 7
+	}
+}
+
+local getscriptbytecode = getscriptbytecode
+local pycompile = pycompile
+
+local luau_compile = getscriptbytecode or pycompile or function(Instance)
+	local code = (type(Instance) == "string" and Instance or Instance.Source)
+	return require(game.ReplicatedStorage.Ception).luau_compile(code)
+end
+
+local function SanitizeItem(obj)
+	return obj or "NOT_FOUNDED_BY_MOONDEC"
+end
+
+local function table_reverse(t)
+	local t2 = table.move(t, 1, #t, 1, {}); for i = 1, #t2 // 2 do t2[i], t2[#t2 - i + 1] = t2[#t2 - i + 1], t2[i] end
+	return t2
+end
+
+local LuauBytecodeTag = Luau.BytecodeTag
+
+local string_format = string.format
+local string_len = string.len
+local string_sub = string.sub
+local string_gmatch = string.gmatch
+local string_gsub = string.gsub
+
+local os_time = os.time
+local os_clock = os.clock
+local os_date = os.date
+
+local math_floor = math.floor
+local math_abs = math.abs
+
+local table_create = table.create
+local table_insert = table.insert
+local table_concat = table.concat
+local table_remove = table.remove
+local table_sort = table.sort
+
+local to_bytes = tobytes or function(input)
+	local str = {}
+	for i = 1 , string_len(input) do
+		table_insert(str , string_sub(input , i , i):byte())
 	end
-	ee=wa(-9583)
-	repeat
-		while true do
-			if ee==-1001694496+1001713025 then
-				he,He=-971277104- -971277105,208589118+-208589118
-				ee=wa(-24989)
-			elseif ee==-520855600- -520829969 then
-				ff,he=(ff-we)/(-1632419707+1632419709),he*(2.0956230777628817e-09*954370097)
-				ee=wa(-1.9685924228564e-05*2011843566)
-			elseif ee==1918745187+-1918747197 then
-				return He
-			elseif ee==-1627555004+1627585298 then
-				if ff>-1617067656+1617067656 then
-					ee=wa(-59096)
-				else
-					ee=-1778938746+1778936736
-				end
-			elseif ee==30986079069483/-1625797737 then
-				ff,sb,he=(ff-uc)/(-2.0473861714812613e-09*-976855284),(sb-Cc)/(9.9582015394611808e-10*2008394781),he*(1973721823+-1973721821)
-				ee=wa(-77891923171830/1639657366)
-			elseif ee==1.968536383579475e-05*-423106226 then
-				He=He+he
-				ee=wa(-1.4633278387170321e-05*1335312531)
-			elseif ee==2.0967235132213881e-05*1053357768 then
-				if ff>-0/-581379229 and sb>0*77789185 then
-					ee=wa(-11432)
-				else
-					ee=-40280533+40293493
-				end
-			elseif ee==-3785161521876/580724382 then
-				ee=-1.4122032959197074e-05*-2145158568;
-			elseif ee==-3.4234137086332968e-06*1338722220 then
-				uc,Cc=ff%(-2836399656/-1418199828),sb%(-2.4856286420300832e-09*-804625424)
-				if uc~=Cc then
-					ee=wa(-3226)
-					break
-				end
-				ee=-31918173129786/1674703454
-			elseif ee==-1.3421648554082901e-05*-965604184 then
-				if ff<sb then
-					ee=wa(294)
-					break
-				end
-				ee=wa(-1463)
-			elseif ee==1.4573340378217712e-05*537831396 then
-				He=He+he
-				ee=wa(1708708045+-1708733680)
-			elseif ee==-18581628528135/1582088423 then
-				ff=sb
-				ee=wa(34441093334079/-821728183)
-			elseif ee==1362960953+-1362929611 then
-				we=ff%(-716268383- -716268385)
-				if we>-654269751- -654269751 then
-					ee=wa(-27576)
-					break
-				end
-				ee=wa(-35881)
-			end
-		end
-	until ee==1317733823-1317764152
+	return table_concat(str , "\\")
 end
-local function B(Uf,dh)
-	local Ra,wb,xh,va,Y,ye,Qf,De,Qg,Qe
-	ye,De={[-12976]=20264,[-18871]=-1556,[31582]=12884,[-8584]=-1556,[19748]=-16662,[13187]=-25356},function(Vc)
-		return ye[Vc+10792]
+
+local addc = function(n) return tostring(n):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "") end
+local env = (getgenv or getrenv or getfenv)
+
+local moon = {}
+local table_find = function(table , value)
+	local founded = nil
+	for i , v in pairs(table) do
+		if v == value then
+			founded = i
+			break
+		end
 	end
-	Qe=De(2395)
-	repeat
-		while true do
-			if Qe==2.0704393784276797e-05*622283373 then
-				va=va+xh;
-				Qf=va;
-				if va~=va then
-					Qe=142471887+-142451623
-				else
-					Qe=De(-19376)
-				end
-			elseif Qe==-1278107916- -1278091254 then
-				Qf=va;
-				if Ra~=Ra then
-					Qe=De(-23768)
-				else
-					Qe=De(-29663)
-				end
-			elseif Qe==2.4006081738575415e-07*2061977483 then
-				Qg=Qg..Y(bg(wb(Uf,Qf+2.3247551341229115e-09*430152830),wb(dh,Qf%#dh+(-806290691+806290692))))
-				Qe=De(-1355873006+1355893796)
-			elseif Qe==938573845-938599201 then
-				Y,wb=string['char'],string['byte']
-				Qg=''
-				Ra,va,xh=#Uf-(397767243-397767242),-0/-1108809564,399810137+-399810136
-				Qe=De(8956)
-			elseif Qe==-7.4869607457339332e-07*2078279896 then
-				if(xh>=(-0*685143146)*(0.022717366835427029*-2080674021)and va>Ra)or((xh<1.3540912316759302*-522221734-(-448679769+-258456102)or xh~=xh)and va<Ra)then
-					Qe=-562083478+562103742
-				else
-					Qe=-1006149010680/-2032624264
-				end
-			elseif Qe==1.0925483936436571e-05*1854746217 then
-				return Qg
-			end
-		end
-	until Qe==8.0933591893843189e-05*268862403
+	return founded
 end
-local V,fe,r=type,getmetatable,pairs;
-local Ig,Cd,Fh,Ia,Jd,qg,Ea,ab={[B('\195q\219\230\223q\220\241\231','\143\16\168\146')]=-194174733- -1937209884,[B('\151YY\155FM\179','\214))')]=B('}@:\15e8@$\19ty','\24!Hc\28'),[B('6\145\55\31\139\49','w\228C')]=B('~\231\220c\174j\185\145\51\255','\28\136\165\a\203'),[B('\184\18\147\135 \172\169\27\142\150(\175\145','\255~\252\229A\192')]=-1718244206+1718244207,[B('\196\221\178\239h@5\t\30b\223\237\254\179\212}W3\0\18T\223\231','\137\188\202\160\24\52\\dw\24\186')]=-411823676+411825630,[B("c)\187\20\f\'ND\196h\96>\182\b=#HX\223~B",',K\215}kF:+\182\17')]=-791453810+791453816,[B('\134\241\155\6<+\173\176\224\166\25\55<\170','\213\132\235vSY\217')]={B('d\252\236*k\251\255/','\5\152\154K'),B('E\167\186\216\248R\171\164\219\231D','!\206\201\185\139')},[B('\203@\152\240\209V\156\240\246','\133/\236\149')]={[B('z','\31')]=B('\162\174\181\179\181','\199\220'),[B('\204','\187')]=B('\196\14\244\221\6\232\212','\179o\134'),[B('\185','\201')]=B("\20-\14\'",'zB')},[B('o\216\246\249\151\173\132\223h[\216\227\206\135\179\131\226~E','+\189\144\152\226\193\240\139\17')]=-514539357- -514539360,[B('\179v\218\154\203\211\14\141\140p\221\134\236\220\4\184','\254\31\169\233\162\189i\221')]=B('\t.Y\tr*^\29\b','!c\16Z'),[B('K\153\55\134\")i\140\49\166\19\54c','\6\248^\232r[')]=B('\144\237\29\241\238u','\184\160\\')},{[B('\144:\3\156\153\231\149U\157\51\3\144\151\225\139U','\223Jw\245\244\142\239\48')]=true,[B('\175\177\182\23\28\164\158\172\190)6\167\147','\252\217\217\96X\193')]=true,[B('\145\51}>7$\155\185\51l\28\53\48\151','\213V\30QZT\242')]=B('F\163?dI\164,a',"\'\199I\5")},B('\191\143\185\216\186','\222\253'),B('\1v7','S'),B('\161\249\135\137\6\242\161\135\217\18','\132\211\216\252v'),{[B('\22\135\158\48\164\166','Y\215\210')]={{B('\147\146\141','\221'),0*315303021,1278804652-1278804652,false},{B('\128\203\135\216\137','\194\153'),1651394427-1651394427,-915298862- -915298862,false},{B('\134\164\255\142\165\247\134','\202\235\190'),-117321355- -117321356,749826818-749826818,false},{B('\132\202\137\193\138','\200\133'),3563650326/1187883442,-0*-1163978357,false},{B('y\130t\137{','5\205'),-687309516/-171827379,0*505180792,false},{B('\147\30\158\21\148','\223Q'),5722007672/1430501918,2.3090390600526352e-09*1299241772,false},{B('\242$\233.','\191k'),-740376960+740376962,721664535-721664535,false},{B('\148F\148\252\159L\130\250\159','\211\3\192\187'),-1.2239249220953428e-09*-817043580,-1275996282+1275996283,true},{B('\22q~\204\t{h\202\t','E4*\139'),-679457035/-679457035,1157191395-1157191394,true},{B('\245h\\\4\226{I\29','\178-\bQ'),-1.0710349762113947e-09*-1867352649,-653009298- -653009298,false},{B("mC\24>nP\r\'",'>\6Lk'),-1.129015254548485e-08*-177145525,0*2064535936,false},{B('\159Q\138\198-\137M\147\212$\143','\220\29\197\149h'),24144328-24144327,675918282-675918282,false},{B('\140\195g\142\134\214|\149\159','\203\134\51\199'),-1554685062- -1554685066,-7750605028/-1937651257,true},{B('\162\211\194R\164\212\218C','\229\150\150\6'),-1203746723+1203746726,-347667584+347667584,false},{B('rF\183\200\96A\175\217','!\3\227\156'),-2.3881638282869897e-09*-1256195226,0*1900026050,false},{B('vK\216\234\158sB\201\245\140','1\14\140\190\223'),-621347804+621347807,-1.0875291803246782e-09*-919515557,true},{B('\166+*\186\16\183\";\165\2','\245n~\238Q'),1138348792-1138348789,-1.6048115949101321e-09*-623126106,true},{B('\140d\219\51\138c\195\"\133','\203!\143g'),4136195883/1378731961,1645341628+-1645341628,false},{B('\193d\28\228\211c\4\245\220','\146!H\176'),-659634324/-219878108,0/7886256,false},{B('>u\181\194-?c\183\211$','p0\226\129a'),-136649451+136649455,-0/-827359433,false},{B('rS\230\25\127S\231\16','<\18\171\\'),2804319615/934773205,-1586668824- -1586668825,true},{B('\137\185\134\180','\202\248'),-281170069+281170072,1293668694+-1293668694,false},{B('\198\141\179\193\154\169','\148\200\231'),1.2086765155507351e-09*1654702457,942870988+-942870988,false},{B('\130\189\133\184','\200\232'),1377993530+-1377993526,0/1646807326,false},{B('\177O\245\29\185[\251\6','\251\26\184M'),-2.3023022828859893e-09*-1737391319,845664915-845664915,false},{B('b_*xC!','(\ng'),-2.2594580290332212e-09*-1770336049,0/1223038733,false},{B('\197\56\221\50\198+\222-\219','\143m\144b'),-1618067611+1618067615,1757014567+-1757014567,false},{B('\204~\225\54\207m\233\55','\134+\172f'),-582748694+582748698,123547728+-123547728,true},{B('\247\210\2p\244\193\3e','\189\135O '),-500011972+500011976,-0/-537210393,true},{B('\128\161\205\142\131\178\204\138','\202\244\128\222'),-1.2402851718239605e-08*-322506476,0*2065252050,true},{B('\2\170\162\227\163\14\177\160\231\175\25','H\255\239\179\234'),-1309817710- -1309817714,-773888889- -773888889,true},{B('[\162\224M~W\185\226I{T','\17\247\173\29\55'),-73747404- -73747408,-0/-719839346,true},{B('2\228h\221\211>\255j\217\214,','x\177%\141\154'),-1368745272/-342186318,0/660554419,true},{B('\205\200\200','\140'),881128884+-881128881,1989169950-1989169950,false},{B('\211\213\194','\128'),1433911310-1433911307,-614151736+614151736,false},{B('ZB[','\23'),-744322746/-248107582,0*662109741,false},{B('\178\191\160','\246'),5703423774/1901141258,-0*-1738774730,false},{B('}\127t','0'),3.8982001051157453e-09*769585942,880937265-880937265,false},{B('\229\250\226','\181'),-4826419425/-1608806475,-50493375- -50493375,false},{B('\133\184\128\183','\196\252'),5011566840/1670522280,1904613576/952306788,false},{B('\5Z\20D','V\15'),3986804754/1328934918,-1965700323+1965700325,false},{B('\197\140\196\146','\136\217'),-1496310465- -1496310468,1569841964-1569841962,false},{B('w\238e\236','3\167'),-3993544590/-1331181530,-3867482796/-1933741398,false},{B('\200{\193\127','\133\52'),-3244211700/-1081403900,1528871656/764435828,false},{B('\0\243\a\247','P\188'),2139781155/713260385,-1325903740+1325903742,false},{B('[T^','\26'),-1642001867+1642001870,-0/-110931657,false},{B('\19\14','\\'),-1076097627+1076097630,-0*-315589771,false},{B('J\203O\206','\v\133'),2438405703/812801901,398941548-398941546,false},{B('\14\19\n','A'),829278979+-829278976,1.5517961719080079e-09*1288829059,false},{B('\191=\238\191\51\244','\252r\160'),-2.058392123316631e-09*-1457448251,1932967442-1932967442,false},{B('\214\215\204','\152'),1.2847711458613555e-09*1556697476,-0*-1679225207,false},{B('[OXSE','\22\6'),101332814/50666407,-0*-1474607561,false},{B('\3\145\139\b\128\141','O\212\197'),2145749248/1072874624,0/286837494,false},{B('T\145\56C[\150#R','\26\212o\23'),1589607604+-1589607602,-0/-648343957,true},{B('Og\250PJp\230A','\v2\170\4'),1664429973+-1664429969,2.9587591229343232e-09*1013938572,false},{B('\164\152\t\187\148\14\163','\247\221]'),-3.0362638449519723e-09*-988056425,-0*-1192175748,true},{B('\184\140j\204\174\145}\210','\254\195\56\130'),-1113436863- -1113436867,-0*-183970164,false},{B('\193\184M\f\203\184P\18','\135\247\31B'),1442312302-1442312298,-1497931899- -1497931899,false},{B('\169\239f\224\163\239{\247','\239\160\52\167'),1371092152+-1371092148,-423697883- -423697891,true},{B('\\\178>X6\252\151J\162%Q#\246\134','\26\253l\31f\174\210'),5.9365771920049542e-09*673788931,894148720-894148720,false},{B('\150[\\\168\147[C\176\227','\208\26\15\252'),-385330737+385330740,-693709216- -693709217,true},{B("r\'W@\230\3q8ZI\243\t\96",'4h\5\a\182Q'),-8249069844/-2062267461,0/1633581828,false},{B('\146\247\204\233\179B-\209\154\253\211\230\170C:\206\130','\214\178\156\182\245\r\127\150'),-1339275345- -1339275345,-1949901902+1949901902,false},{B('\4\202\164\169\151\17\206\162\184\133','C\143\240\255\214'),-82240762/-41120381,-0/-2037143159,false},{B('\211\29\237\235\191\216\27\232\250\182','\151H\189\168\243'),-245717120- -245717124,2.2989973353034577e-09*1304916693,false},{B("\239~\223n\'\254~\219l6\236",'\191,\154>q'),-1201264846+1201264847,-0/-22109754,false},{B('\223\a\147\215\3\138','\147H\210'),4.8645805059428656e-10*2055675713,-1101248994+1101248995,true},{B('\172\53\171\48\190','\230\96'),158562676-158562671,2111113537-2111113537,false},{B('\n\185QB\15\185NZ','L\248\2\22'),-8.8900764714006308e-09*-337454915,488239450-488239450,false},{B('\243\140:\215\226\130+\215','\176\195l\146'),2.9980561527306989e-09*1667747282,0*364293250,false},{B('\31\56\158\b,\156\25','\\y\206'),542306902/271153451,-0/-2012777747,false},{B('\127\172n\171g',',\249'),-5421850572/-1807283524,-700626149+700626156,false},{B('T{F\96[','\16\50'),-1180984901- -1180984904,6159431341/879918763,false},{B('\205\139\4\17\200\139\27\t\186','\139\202WE'),2.4450487478415536e-09*1226969402,-0/-988489593,false},{B('\191\189m\224\186\189r\248\203','\249\252>\180'),4729583883/1576527961,-1319411298+1319411298,true},{B('E\193T+fB\204KMn','\3\128\a\127%'),-988316383- -988316386,56195831+-56195830,true},{B('\152\169=j\142\180*}','\222\230o-'),1231364207+-1231364203,147737426-147737426,false},{B('E\233\157zLJ\237\155d]C','\15\188\208*\20'),337130301+-337130297,10465376590/2093075318,true},{B('\3\v\166\164\17\27\186\191\v','I^\235\244'),-7787415868/-1946853967,2014917898+-2014917893,true},{B('h\241\233\16z\225\245\vl','\"\164\164@'),56171132/14042783,-888145632+888145638,true},{B('\172c1\215\190s-\204\181','\230\54|\135'),-772609543- -772609547,-1077394263- -1077394269,true},{B('2\233\50\251','{\173'),1072403381-1072403378,1332527401-1332527401,false},{B('\147\193\147\211\145','\218\133'),-1.9793332876300878e-09*-1515661874,1.0828967858288727e-09*1846898085,false}},[B('\153\198\144\176\211\180\219\129\129\209\188','\219\191\228\213\176')]={[B('\20\132\191\129\6\14\25\159\174\156\27\3','W\203\241\210RO')]=-645952367+645952367,[B('\25\193\192\180H\aYA\5\204\193\168P\3V[','Z\142\142\231\28F\23\21')]=2052871111/2052871111,[B('\213\181\149o\133}l\194\165\149i\156~g\196','\150\250\219<\209<\"')]=3287648176/1643824088,[B('\198\127|\189Z\140d\209oa\186\\\132d\194','\133\48\50\238\14\205*')]=-2436899259/-812299753,[B('\189\138\159\159\170\52#\170\154\152\129\174:?\170','\254\197\209\204\254um')]=-660339322+660339326,[B('g\18\238\143\6\243~p\2\244\157\16\254u','$]\160\220R\178\48')]=-1717108619- -1717108624,[B('T\177\205\20\169[\29\196H\189\207\b\174O\1\213','\23\254\131G\253\26S\144')]=1271134692+-1271134686,[B(' \155k\28\n\242\150\55\139s\n\29\231\151\49','c\212%O^\179\216')]=-576136734+576136741}},getscriptbytecode,pycompile
-local Sc=Ea or ab or function(Rc)
-	local sc=(type(Rc)==B('r\180\96h\174u','\1\192\18')and Rc or Rc[B('\212\a\231\245\v\247','\135h\146')])
-	return require(game[B('\243\200\252\253\57\215%A\196\201\223\229?\198%R\196','\161\173\140\145P\180D5')][B('R\20\197e\24\218\127','\17q\181')])[B('\139\181\151\217\48\170\136\173\134\197\3\172','\231\192\246\172o\201')](sc)
+
+local function FormatTimestamp(timestamp)
+	local date = os_date("*t", timestamp)
+	local months = { "January", "February", "March", "April", "May", "June", 
+		"July", "August", "September", "October", "November", "December" }
+	local hour = date.hour % 12
+	hour = hour == 0 and 12 or hour
+	local ampm = date.hour >= 12 and "p.m." or "a.m."
+	return string_format("%d of %s %d, %d:%02d %s", 
+		date.day, months[date.month], date.year, hour, date.min, ampm)
 end
-local function _d(Ad)
-	return Ad or B('\179\232\198\197\244Y\221\172\251G\171\162\229\203\197\255Y\199\172\251G\172','\253\167\146\154\178\22\136\226\191\2\239')
-end
-local function ze(af)
-	local eg,We,Bh,rf,xf,u,Nh,gf
-	We,Bh={[-5426]=16678,[6251]=26824,[-20300]=26824,[-4128]=-21354},function(yf)
-		return We[yf+5210]
-	end
-	eg=Bh(-9338)
-	repeat
-		while true do
-			if eg==1524904563-1524908574 then
-				return Nh
-			elseif eg==1997968553-1997989907 then
-				Nh=table[B('\224\225\251\235','\141\142')](af,2.2921150760041293e-09*436278270,#af,1.5460131012953397e-09*646825049,{})
-				gf,u,xf=-319876643+319876644,111950713+-111950712,#Nh//(3828523942/1914261971)
-				eg=-20269884513507/1060195853
-			elseif eg==-1672397184- -1672415845 then
-				Nh[rf],Nh[#Nh-rf+1519002053/1519002053]=Nh[#Nh-rf+(-534766744+534766745)],Nh[rf]
-				eg=Bh(7.4467933598433532e-06*-1428265763)
-			elseif eg==-1681180773+1681197451 then
-				gf=gf+u;
-				rf=gf;
-				if gf~=gf then
-					eg=-1861698706+1861694695
-				else
-					eg=Bh(-25510)
-				end
-			elseif eg==-38337223117035/2005189765 then
-				rf=gf;
-				if xf~=xf then
-					eg=-1357250531- -1357246520
-				else
-					eg=Bh(1041)
-				end
-			elseif eg==27906577181896/1040358529 then
-				if(u>=-26192734216264432/-551822901+(773995582+-821461416)and gf>xf)or((u<(-0*2100901794)/(-1026388094+-691498757)or u~=u)and gf<xf)then
-					eg=845252261+-845256272
-				else
-					eg=-1051436615- -1051455276
-				end
-			end
-		end
-	until eg==-1267093075155/245038305
-end
-local Ge,Bc,zf,ad,Gc,Kf,yc,Ae,e,bh,Lg,qb,kf,Mf,g,y=qg[B('d\6\163\143\56I\27\178\190:A','&\127\215\234[')],string[B(']\157]V\147[',';\242/')],string[B('\19\26\17','\127')],string[B('/)>','\\')],string[B('\191\150\193\172\152\200','\216\251\160')],string[B('\164Z\182K','\195)')],os[B('\221\220\196\208','\169\181')],os[B('\234\128\230\143\226','\137\236')],os[B('\166\190\182\186','\194\223')],math[B('\154\239\147\236\142','\252\131')],math[B('+(9','J')],table[B('\241e\23\243c\23','\146\23r')],table[B(' \243w,\239p','I\157\4')],table[B('\204~d\204p~','\175\17\n')],table[B('\14\202E\19\217M','|\175(')],table[B('\169\54\168-','\218Y')]
-local Id,qc,td,dc,U=tobytes or function(yb)
-	local jb,b,_b,db,hd,Ed,uh,Fa
-	db,_b={[21577]=32686,[15414]=-13111},function(Be)
-		return db[Be+17742]
-	end
-	b=_b(-2328)
-	repeat
-		while true do
-			if b==1.1257857699814865e-05*-1164608787 then
-				Fa={}
-				hd,uh,jb=-934166545+934166546,zf(yb),582042174+-582042173
-				b=-438609457- -438598712
-			elseif b==625946124-625956869 then
-				Ed=hd;
-				if uh~=uh then
-					b=1092869916+-1092843476
-				else
-					b=57879274956444/-1949978942
-				end
-			elseif b==1131170116-1131137430 then
-				hd=hd+jb;
-				Ed=hd;
-				if hd~=hd then
-					b=33744707932960/1276274884
-				else
-					b=-1669241293- -1669211611
-				end
-			elseif b==-17981971546560/-680104824 then
-				return Mf(Fa,B('$','x'))
-			elseif b==-552090622+552060940 then
-				if(jb>=(0*1765610227)*(3082866136-1459749634)and hd>uh)or((jb<(2513367046+-1706100161)-(-713396086+1520662971)or jb~=jb)and hd<uh)then
-					b=-555826079+555852519
-				else
-					b=1875596604+-1875579041
-				end
-			elseif b==1509890478-1509872915 then
-				kf(Fa,ad(yb,Ed,Ed)[B('zklw','\24\18')](ad(yb,Ed,Ed)))
-				b=_b(-849221133+849224968)
-			end
-		end
-	until b==45256881861620/1536318890
-end,function(Oa)
-	return tostring(Oa)[B('\161r\162\182e\167\182','\211\23\212')](tostring(Oa))[B('\238\179\252\162','\137\192')](tostring(Oa)[B('\161r\162\182e\167\182','\211\23\212')](tostring(Oa)),B('\19wwk_wwg',';R\19N'),B('0$9','\21'))[B('\211\157\168\196\138\173\196','\161\248\222')](tostring(Oa)[B('\161r\162\182e\167\182','\211\23\212')](tostring(Oa))[B('\238\179\252\162','\137\192')](tostring(Oa)[B('\161r\162\182e\167\182','\211\23\212')](tostring(Oa)),B('\19wwk_wwg',';R\19N'),B('0$9','\21')))[B('D\190V\175','#\205')](tostring(Oa)[B('\161r\162\182e\167\182','\211\23\212')](tostring(Oa))[B('\238\179\252\162','\137\192')](tostring(Oa)[B('\161r\162\182e\167\182','\211\23\212')](tostring(Oa)),B('\19wwk_wwg',';R\19N'),B('0$9','\21'))[B('\211\157\168\196\138\173\196','\161\248\222')](tostring(Oa)[B('\161r\162\182e\167\182','\211\23\212')](tostring(Oa))[B('\238\179\252\162','\137\192')](tostring(Oa)[B('\161r\162\182e\167\182','\211\23\212')](tostring(Oa)),B('\19wwk_wwg',';R\19N'),B('0$9','\21'))),B('\208\162','\142'),'')
-end,(getgenv or getrenv or getfenv),{},function(Vd,gh)
-	local Ue,Lh,Jb,Qb
-	Lh,Ue={[-12779]=-28845},function(Fb)
-		return Lh[Fb-13711]
-	end
-	Qb=Ue(932)
-	repeat
-		while true do
-			if Qb==-1831461649- -1831432804 then
-				Jb=nil
-				for Se,Ca in pairs(Vd)do
-					if not(Ca==gh)then
-					else
-						Jb=Se
-						break
-					end
-				end
-				return Jb
-			end
-		end
-	until Qb==-1077155063- -1077157190
-end
-local function x(m)
-	local Ha,zd=e(B('I\23','c'),m),{B('V\159Ai\159]e','\28\254/'),B('O\148nz|\144~q','\t\241\f\b'),B('\214\96\233b\243','\155\1'),B('\201*\250\51\228','\136Z'),B('\157\177\169','\208'),B('.\171\n\187','d\222'),B('\163:\133\54','\233O'),B('\167\19\144\147\21\131','\230f\247'),B('\247\21\57n\193\29+\127\214','\164pI\26'),B('_\0\150\127\1\135b','\16c\226'),B('#\25\147\160\0\20\128\183','mv\229\197'),B('KC)\211bD/\196','\15&J\182')}
-	local Ug=Ha[B('\0F\29[','h)')]%(-23134503132/-1927875261)
-	Ug=Ug==-0/-1318992582 and-1.0660024912087353e-08*-1125700934 or Ug
-	local t=Ha[B('T\230I\251','<\137')]>=-8662183308/-721848609 and B('\189\133\160\133','\205\171')or B('P\211\\\211','1\253')
-	return Bc(B(',1\234\49\211\56\248#E\144s%u\239:\143=\237b\1\149\50z','\tU\202^\181\24\221Pe\181\23'),Ha[B('\186\191\167','\222')],zd[Ha[B('\192Y\195B\197','\173\54')]],Ha[B('\19\247\v\224','j\146')],Ug,Ha[B('y}z','\20')],t)
-end
-local nf,fa=request,pyrequest
-local function ve(Cb,pd)
-	local Dd=pcall(function()
-		return Cb[pd]
+
+local request = request
+local pyrequest = pyrequest
+
+local function getsafeObj(i,v)
+	local ok = pcall(function()
+		return i[v]
 	end)
-	return Dd
+	return ok
 end
-local function cd(Nf,cc,if_)
-	if_=if_ or{}
-	if fa then
-		local ng,qe,Re,Jg
-		ng,Jg={[-6516]=-13337,[-5992]=-31255,[30653]=22951},function(Xa)
-			return ng[Xa+10753]
+
+local function HTTPRequest(url, method, optional)
+	optional = optional or {}
+
+	-- When called from discord
+	if pyrequest then -- This is in the "setup.py" file (discord bot handling)
+		local response = pyrequest({
+			["Url"] = url,
+			["Method"] = method,
+			["Extra"] = optional or {}
+		})
+		if response.code ~= 200 then
+			error( string_format("Failed to call \"%*\" with python_http ( HTTP %d )" , url , response.code))
+			return ""
 		end
-		qe=Jg(19900)
-		repeat
-			while true do
-				if qe==-663387845- -663356590 then
-					return Re[B('binx','\22\f')]
-				elseif qe==-584319263175/-25459425 then
-					Re=fa({[B('\223\248\230','\138')]=Nf,[B('\137\188\22\172\182\6','\196\217b')]=cc,[B('\239N\222D\203','\170\54')]=if_ or{}})
-					if Re[B('\210b\213h','\177\r')]~=-144010189000/-720050945 then
-						qe=Jg(-17269)
-						break
-					end
-					qe=-1640650958+1640619703
-				elseif qe==1487469776-1487483113 then
-					error(Bc(B("\'w\250\175\156\\\245g|W\210v\\\244\223\142\\\139\228\181[\28A\202Af\234\183\145W\187L{\3\197g\16\176\223\228-\245\150\181\t\17\21\139",'a\22\147\195\249\56\213\19\19w\177\23\48\152\255\172y\161\198\149,u5\162'),Nf,Re[B('\165\224\162\234','\198\143')]))
-					return''
-				end
-			end
-		until qe==-1034896731+1034888143
+		return response.text
 	end
-	if not(nf)then
-	else
-		local nh,Rb,Eg,Ga
-		nh,Ga={[-9177]=32761,[1412]=13372,[23870]=13372,[6714]=24226},function(qh)
-			return nh[qh-16239]
+
+	-- Exploit request (type 1)
+	if request then 
+		local response = request({
+			["Url"] = url,
+			["Method"] = method,
+			["Body"] = optional.body,
+			["Headers"] = optional.headers
+		})
+		if response.StatusCode ~= 200 then
+			error( string_format("Failed to call \"%*\" ( HTTP %d )" , url , response.StatusCode))
 		end
-		Rb=Ga(22953)
-		repeat
-			while true do
-				if Rb==21433363260096/1602853968 then
-					return Eg[B('\211n\245x','\145\1')]
-				elseif Rb==666270284-666237523 then
-					error(Bc(B("\248\207\139\209\148\57:\202\217\29\51\194\'!\218\156\139\200\159\209u:\246\226i\0\131n)\218\151",'\190\174\226\189\241]\26\190\182=P\163KM\250'),Nf,Eg[B('\252L\31\246 \220{\17\230\48','\175\56~\130U')]))
-					Rb=Ga(0.00013743856302799582*291832213)
-				elseif Rb==-358023303- -358047529 then
-					Eg=nf({[B('|[E',')')]=Nf,[B('\242,|\215&l','\191I\b')]=cc,[B('\144\25\182\15','\210v')]=if_[B('<a:w','^\14')],[B(';\183c\23\183p\0','s\210\2')]=if_[B('\174W\131\162W\144\181','\198\50\226')]})
-					if Eg[B('\172\190\202z;\140\137\196j+','\255\202\171\14N')]~=-9.9083406260289166e-08*-2018501458 then
-						Rb=Ga(7062)
-						break
-					end
-					Rb=Ga(17651)
-				end
-			end
-		until Rb==1552532780+-1552501487
+		return response.Body
 	end
-	if not(ve(game,B(B('\201R7\241a&\245','\160\24\20'),B('0/F','\17'))))then
-	else
-		local Kd,Oc,yg,jc,Of
-		Of,yg={[-6447]=24424,[-17415]=26133,[-25948]=13099,[27699]=17546,[31139]=17546,[-5939]=-28160,[26369]=-16874},function(Pg)
-			return Of[Pg+13430]
+	-- Try game:HttpGet (only for GET requests)
+	if getsafeObj(game , "HttpGet") then
+		if method == "GET" then
+			local success, body = pcall(function()
+				return game:HttpGet(url)
+			end)
+			if success then return body end
+			return string_format("-- Failed to send a request with game:HttpGet to \"%*\"", url)
 		end
-		Kd=yg(12939)
-		repeat
-			while true do
-				if Kd==5.09627831364809e-05*-331104366 then
-					if cc==B('\143\141\156','\200')then
-						Kd=yg(-39378)
-						break
-					end
-					Kd=-27041990807040/960297969
-				elseif Kd==2002157451-2002139905 then
-					return Bc(B('&\167j\137]\185N\154\182\164jC\149Z\31\1\1\248<\166\vs\238\177\24\50\127\170=\166H\184\2\152\179\233{\22\253]\14\31\"\189)\166\ry\191\230Xk)','\v\138J\207<\208\"\255\210\132\30,\181)zoe\216]\134y\22\159\196}A'),Nf)
-				elseif Kd==1.9857728784272473e-05*1316011528 then
-					return jc
-				elseif Kd==20996199150080/-745603663 then
-					Kd=yg(-19877);
-					break;
-				elseif Kd==-1539680427- -1539693526 then
-					Oc,jc=pcall(function()
-						return game[B('n\190\vV\141\26R','&\202\127')](game,Nf)
-					end)
-					if Oc then
-						Kd=yg(-30845)
-						break
-					end
-					Kd=yg(14269)
-				end
-			end
-		until Kd==2.1031908149902642e-05*1161283124
 	end
-	local Nb,tb={[B('\17N\18U','A\1')]=B('U\174\220\250D\178\214\224f','\5\193\175\142'),[B('\18\16\1','U')]=B('g\20\203\130S\b\209\160',' q\191\195')},game[B('\171M\142c\234\158^\147S\234','\236(\250\48\143')](game,B('\193h\247\133\t\236n\245\156\57\236','\137\28\131\245Z'))
-	if not Nb[cc]then
-		return Bc(B('\15i\208\205PaL\196\f#s\206\195X(\n\193Kd','F\a\166\172<\b(\228a'),cc)
+
+	-- Use HttpService
+	local Methods = {
+		["POST"] = "PostAsync",
+		["GET"] = "GetAsync",
+	}
+	local Http = game:GetService("HttpService")
+	if not Methods[method] then
+		return string_format("Invalid method \"%*\"" , method)
 	end
-	local Ic,Da=pcall(function()
-		local ob,w,Te
-		Te,ob={[6026]=-13131,[-9310]=-32274,[-6023]=-29893,[-7249]=15949,[-27704]=15949,[9488]=3858},function(Wc)
-			return Te[Wc+-3993]
+	local success, body = pcall(function()
+		if method == "POST" then
+			return Http:PostAsync(url, Http:JSONEncode(optional.body) or "", Enum.HttpContentType.ApplicationJson, false , optional.headers or nil)
+		else
+			return Http:GetAsync(url, false, optional.headers or nil)
 		end
-		w=ob(13481)
-		repeat
-			while true do
-				if w==-8.7799659013372374e-05*367586849 then
-					return tb[B('\6+\26\24\50\55\0:','ANnY')](tb,Nf,false,if_[B('I:\143E:\156R','!_\238')]or nil)
-				elseif w==-52786438782592/1765846144 then
-					return tb[B('\224\194\202v\241\222\192l\211','\176\173\185\2')](tb,Nf,tb[B('\247\150\229\194\29\211\166\197\232=','\189\197\170\140X')](tb,if_[B('\0\140\6\154','b\227')])or'',Enum[B('\185\52^V\232\254\21\133%DR\255\232\v\148','\241@*&\171\145{')][B('7\242\174=%T6\2\235\177?\6D8\24','v\130\222QL7W')],false,if_[B('\26\127\a\22\127\20\1','r\26f')]or nil)
-				elseif w==1092848337+-1092844479 then
-					if cc==B('Z\165Y\190','\n\234')then
-						w=ob(-2030)
-						break
-					else
-						w=ob(-5317)
-						break
-					end
-					w=-587067472+587083421
-				elseif w==1008747972-1008732023 then
-					w=ob(10019);
-					break;
-				end
-			end
-		until w==15852388982580/-1207249180
 	end)
-	if not(not Ic)then
-	else
-		return Bc(B('\190K\203\195\173z\137\230VV\210_\238;\181\154\219\18\252\178-T\203\193\179\17\130\241\164\51\173\247F\6\243_\237\56\185\138\202[\230\186-\3\156\135\177','\147f\235\133\204\19\229\131\50v\160:\159N\208\233\175{\146\213\r!\185\173'),Nf)
+	if not success then
+		return string_format("-- Failed requesting url with HttpService to \"%*\"", url)
 	end
-	return Da
+	return body
 end
-local function K(od,Fe)
-	local Ah,mf,ua,D,Tg,lc,gb,ud,Pf,Rg,Sb
-	D,Rg={[-25934]=9145,[1125]=17158,[9058]=-781,[18086]=-781,[7651]=28575,[-23044]=31039,[-13150]=24602,[-30061]=-31220},function(lg)
-		return D[lg+12946]
+
+local function GetFromWeb(fileName , customType)
+	local BASE_URL = "https://raw.githubusercontent.com/"
+	local AUTHOR = "boydev-1444"
+	local REPO = "RunLuauDecompiler"
+	local BRANCH = "refs/heads/main"
+	if customType == "u" then
+		customType = "luau"
 	end
-	Sb=Rg(-43007)
-	repeat
-		while true do
-			if Sb==-5.380535048646318e-05*-318890219 then
-				ua=loadstring or load
-				lc=ua(lc)
-				if type(lc)~=B('\228\231|/\246\251}\"','\130\146\18L')then
-					Sb=Rg(-38880)
-					break
-				end
-				Sb=23290055079407/750348113
-			elseif Sb==1.1501308370284956e-06*-679053178 then
-				gb=Fe or B('\151\142\154','\251')
-				Pf=Mf({mf,Tg,ud,Ah},B('\223','\240'))..B('\248','\215')..od..B('0','\30')..gb
-				lc=cd(Pf,B('acr','&'))
-				if Fe==B('\246.\243\51','\156]')then
-					Sb=Rg(-5295)
-					break
-				end
-				Sb=2.6055603133918379e-05*658514789
-			elseif Sb==63134557720637/2034039683 then
-				return lc()
-			elseif Sb==0.0005653561680663571*43515931 then
-				Fe=B('\253\255\240\255','\145\138')
-				Sb=Rg(866835805+-866830665)
-			elseif Sb==-1346690064- -1346718639 then
-				return lc
-			elseif Sb==589069517+-589060372 then
-				return B('X\236/2\154\174\49*\239?.\147\184!','\n\137^G\255\221E')
-			elseif Sb==621370648+-621401868 then
-				mf=B('sJ\6\144O\r*\244\144e\131\48\r\214y\3pyK\1\133NTj\181\150a\154jD\220b\6*','\27>r\224<7\5\219\226\4\244\30j\191\rk\5')
-				Tg=B("q\246\165\219\150e\180\237\139\199\'",'\19\153\220\191\243')
-				ud=B('=MQ\141\163B\220\30\n[P\172\166J\197?\29','o8?\193\214#\169Z')
-				Ah=B('wN\242\127\188P\187dO\231#\254Y\183k','\5+\148\f\147\56\222')
-				if Fe==B('\154','\239')then
-					Sb=Rg(-26096)
-					break
-				end
-				Sb=Rg(-3888)
-			end
-		end
-	until Sb==-1.7405992873444089e-05*1868264582
+	local FILE_TYPE = customType or "lua"
+	local URL = table_concat({ BASE_URL , AUTHOR , REPO , BRANCH } , "/") .. "/" .. fileName .. "." .. FILE_TYPE
+	local Request = HTTPRequest(URL , "GET")
+	if customType == "json" then
+		return Request
+	end
+	local METHOD = loadstring or load
+	Request = METHOD(Request)
+	if type(Request) ~= "function" then
+		return "Request failed"
+	end
+	return Request()
 end
-local zg=K(B('\27l\215\rl\196','i\t\182'))
-function dc.decompile(ga,Lf)
-	local cg,id=Lf or Cd,(type(ga)==B('\175\\\185Q\190','\219=')and(ga[B('\217_\230\50\209W\231\50','\191\54\138W')]~=nil and ga[B('\28\185\24\v\179\24\v','\127\214v')]~=nil)or false)
-	local xb,Na=(id and ga[B("0~\201\'t\201\'",'S\17\167')]or ga),tostring(_VERSION)
-	local Kc,dg,kh=pcall(function()
-		local kc,Ne,Je
-		Je,Ne={[15672]=31658,[8812]=31658,[1090]=-8208,[-20811]=-19215},function(d)
-			return Je[d+-17953]
+
+local Reader = GetFromWeb("reader")
+
+--@field MoonDecompiler (decompile) main method, made by boydev1444
+function moon.decompile(Input , CustomOptions)
+	local CurrentOptions = CustomOptions or DefaultOptions
+	local File = (type(Input) == "table" and (Input.filename ~= nil and Input.content ~= nil) or false) --// Is file
+	local SourceInput = (File and Input.content or Input)
+	local Version = tostring(_VERSION) -- Should be Lua/u
+	local success , bytecode = pcall(function()
+		if typeof(Input) == "string" then
+			return Input
 		end
-		kc=Ne(-2858)
-		repeat
-			while true do
-				if kc==-29673244713222/-937306359 then
-					return Sc(xb)
-				elseif kc==1576994448+-1577013663 then
-					if typeof(ga)==B('\215\202\155\205\208\142','\164\190\233')then
-						kc=Ne(19043)
-						break
-					end
-					kc=Ne(33625)
-				elseif kc==1976548074-1976556282 then
-					return ga
+		return luau_compile(SourceInput)
+	end)
+	local mode = CurrentOptions.DecompilerMode or DefaultOptions.DecompilerMode
+	local function __moon()
+		local source = {}
+		local elapsed_t = os_clock()
+		local LuauVersion , TypesVersion
+		local stream = Reader(bytecode)
+		local NIL_CONSTANTS = 0
+		LuauVersion = stream:readByte()
+		TypesVersion = stream:readByte()
+		local function __decompile()
+			local string_count = stream:nextVarInt()
+			stringList = table_create(string_count)
+			for i = 1 , string_count do
+				stringList[i] = stream:readString()
+			end
+			if TypesVersion == 3 then
+				local index = stream:readByte()
+				while index ~= 0 do
+					stream:nextVarInt()
+					index = stream:readByte()
 				end
 			end
-		until kc==-265533515- -265501280
-	end),cg[B('\165\194n?(\212R\141\194\127\29*\192^','\225\167\rPE\164;')]or Cd[B('\2\194\143\26\167?\132*\194\158\56\165+\136','F\167\236u\202O\237')]
-	local function bb()
-		local n,c={},Ae()
-		local da,l,za,fc=zg(dg),-1418639319+1418639319
-		da=za[B('.p\25>\30l\f?','\\\21xZ')](za)
-		l=za[B('\156#\190\198\172?\171\199','\238F\223\162')](za)
-		local function qf()
-			local Tc=za[B('\251\20\187\28\6\244\3\138\6$','\149q\195hP')](za)
-			stringList=qb(Tc)
-			for _=6.083062237862789e-10*1643908875,Tc do
-				stringList[_]=za[B('\237\1\219^\30\235\22\211T*','\159d\186:M')](za)
-			end
-			if not(l==(-1.0247037950723219e-18*1629876375)*(-1179294529+-616961527))then
-			else
-				local I,lf,Ye,Ud
-				I,Ud={[15727]=-3498,[-20437]=-3498,[7203]=-14404,[6486]=-24803},function(v)
-					return I[v+21799]
-				end
-				Ye=Ud(-15313)
-				repeat
-					while true do
-						if Ye==-9.4000782775273109e-06*-852546092 then
-							za[B('\195\215\185\172\170\204\192\136\182\136','\173\178\193\216\252')](za)
-							lf=za[B('D\170\\bt\182Ic','6\207=\6')](za)
-							Ye=Ud(2045150461992/-336816611)
-						elseif Ye==-208021675456/486031952 then
-							Ye=Ud(-14596);
-							break;
-						elseif Ye==33921685342956/-1367644452 then
-							lf=za[B('\17o\205\227!s\216\226','c\n\172\135')](za)
-							Ye=Ud(-42236)
-						elseif Ye==459391406+-459394904 then
-							if lf~=-0*-434179492 then
-								Ye=-255190619- -255198633
-							else
-								Ye=-553713878+553713450
-							end
-						end
+			local GLOBAL_CONSTANTS = {}
+			local protoCount = stream:nextVarInt()
+			local encoded_instructions = {}
+			local protoList = table_create(protoCount)
+			local function __dec_instruction(index , writedInstructions)
+				local value = stream:readWord()
+				local opcode = bit32.band(value, 0xFF)
+				table_insert(encoded_instructions , opcode)
+				local opInfo = Luau.OPList[opcode + 1]
+				if not opInfo then
+					if CurrentOptions.ShowDebugInfo then
 					end
-				until Ye==11226959+-11241363
-			end
-			local kb,k,xd={},za[B('\180}]\201&\187jl\211\4','\218\24%\189p')](za),{}
-			local Bf=qb(k)
-			local function pe(H,Sf)
-				local be,X,N,jg,ya,Zc,_c,Vg,s,of,Fg,ag,Ec,ja
-				of,be={[-18695]=-14015,[28001]=5586,[25392]=-31943,[-25292]=-31943,[27482]=25356,[21705]=-6681,[-20975]=-30119,[25420]=-27884,[-767]=-5570,[5156]=12167,[14600]=-5570,[7279]=23510,[-23949]=23313,[-28609]=-5570,[-8213]=-5570,[-4646]=25356,[16059]=21119,[-5707]=-5570,[-26030]=-30381},function(Xd)
-					return of[Xd- -10050]
+					return false
 				end
-				_c=be(-36080)
-				repeat
-					while true do
-						if _c==-1525465137077/-72231883 then
-							ya[B("\'",'f')]=bit32[B('\156\96\144e','\254\1')](bit32[B('\247\190\246\236\171\234','\133\205\158')](Vg,-1905444319+1905444327),-473795312- -473795567)
-							_c=be(40929402052801/-1058728939)
-						elseif _c==-463990174- -463960055 then
-							_c=be(918480290+-918515632);
-						elseif _c==513929919+-513936600 then
-							Zc=za[B('\138\193>g\175\203-g','\248\164_\3')](za)
-							ya[B('bv{','\3')]=Zc
-							_c=be(496413926+-496396494)
-						elseif _c==-1589431014- -1589436600 then
-							ya[B('\246','\183')]=bit32[B('%()-','GI')](bit32[B('\188\198\158\167\211\130','\206\181\246')](Vg,996028357-996028349),873746266+-873746011)
-							ya[B('s','1')]=bit32[B('\165K\169N','\199*')](bit32[B('\237\230\1\246\243\29','\159\149i')](Vg,-1874931290- -1874931306),-464097452040/-1819990008)
-							ya[B('\28','_')]=bit32[B('\238\234\226\239','\140\139')](bit32[B('\139\177j\144\164v','\249\194\2')](Vg,4.3580979976152196e-08*550698952),420853602-420853347)
-							_c=be(1286119675+-1286115125)
-						elseif _c==3911952552323/-122466661 then
-							return false
-						elseif _c==-6016361890880/429280192 then
-							if cg[B("#:f\31\210\56\18\'n!\248;\31",'pR\th\150]')]then
-								_c=be(-31025)
-								break
-							end
-							_c=be(15342)
-						elseif _c==-2.7232846411523999e-05*1023910596 then
-							ya[B('\142','\207')]=bit32[B('K\nG\15',')k')](bit32[B('\19\187\252\b\174\224','a\200\148')](Vg,-7.6263870796556608e-09*-1048989504),-2.9439912216139025e-07*-866171061)
-							ya[B('\136','\202')]=bit32[B('\r\209\1\212','o\176')](bit32[B('I\\7RI+',';/_')](Vg,-1.5751509634035786e-08*-1015775654),1782829487+-1782829232)
-							_c=be(-1668136612366/91339682)
-						elseif _c==-1274491535- -1274515045 then
-							ya[B('k','*')]=bit32[B('\238\193\226\196','\140\160')](bit32[B('\160\235@\187\254\\','\210\152(')](Vg,484577250-484577242),-1036820862+1036821117)
-							X=bit32[B('8\250\52\255','Z\155')](bit32[B('\17a\t\nt\21','c\18a')](Vg,451135970-451135954),83100239490090/1268028374)
-							ya[B('\205','\137')]=if X<1128731019-1128698251 then X else X- -132679561510912/-2024529442
-							_c=be(1723033897-1723049654)
-						elseif _c==1731236096-1731223929 then
-							s=bit32[B('e\130i\135','\a\227')](bit32[B('@\160\f[\181\16','2\211d')](Vg,-1302811158- -1302811166),1620380087-1603602872)
-							ya[B('\196','\129')]=if s<2125715865+-2117327257 then s else s- -25860982240706560/-1541434660
-							_c=be(-432474984+432464167)
-						elseif _c==144100163-144105733 then
-							if jg then
-								_c=be(11655)
-								break
-							end
-							_c=be(-14696)
-						elseif _c==-13137491833362/432424602 then
-							Vg=za[B('D*\b\21a \27\21','6Oiq')](za)
-							ag=bit32[B('\25\178\21\183','{\211')](Vg,1973040525-1973040270)
-							kf(xd,ag)
-							N=qg[B('p\177\181V\146\141','?\225\249')][ag+(-1803480693+1803480694)]
-							if not N then
-								_c=be(-28745)
-								break
-							end
-							_c=712562651-712539338
-						elseif _c==-728851921+728877277 then
-							kf(Sf,ya)
-							return jg
-						elseif _c==356884357-356861044 then
-							Ec=N[1413744948+-1413744947]
-							ja=N[-1735972802/-867986401]
-							Fg=N[-1397956247+1397956250]
-							jg=N[2003421122-2003421118]
-							ya={[B('\169\244N\169\224H','\198\132-')]=ag,[B('\253\27\197\243\6\206','\146k\171')]=Ec,[B('\20\50\138\20&\130','{B\231')]=ja,[B('\172\28\168\21\162','\199q')]=Fg,[B('\185|\132\191N\148\180','\204\15\225')]=jg}
-							if ja==-492856622/-492856622 then
-								_c=be(6009)
-								break
-							elseif ja==-174325675- -174325677 then
-								_c=be(15370)
-								break
-							elseif ja==-5183742882/-1727914294 then
-								_c=be(17951)
-								break
-							elseif ja==-1.3554167590722042e-08*-295112184 then
-								_c=be(-2771)
-								break
-							elseif ja==7036175685/1407235137 then
-								_c=be(-4894)
-								break
-							end
-							_c=-4081167668790/732705147
-						end
-					end
-				until _c==1944896127+-1944904163
+				local opname = opInfo[1]
+				local opmode = opInfo[2]
+				local kmode = opInfo[3]
+				local usesAux = opInfo[4]
+				local instruction = {
+					opcode = opcode;
+					opname = opname;
+					opmode = opmode;
+					kmode = kmode;
+					usesAux = usesAux;
+				}
+				if opmode == 1 then --[[ A ]]
+					instruction.A = bit32.band(bit32.rshift(value, 8), 0xFF)
+				elseif opmode == 2 then --[[ AB ]]
+					instruction.A = bit32.band(bit32.rshift(value, 8), 0xFF)
+					instruction.B = bit32.band(bit32.rshift(value, 16), 0xFF)
+				elseif opmode == 3 then --[[ ABC ]]
+					instruction.A = bit32.band(bit32.rshift(value, 8), 0xFF)
+					instruction.B = bit32.band(bit32.rshift(value, 16), 0xFF)
+					instruction.C = bit32.band(bit32.rshift(value, 24), 0xFF)
+				elseif opmode == 4 then --[[ AD ]]
+					instruction.A = bit32.band(bit32.rshift(value, 8), 0xFF)
+					local temp = bit32.band(bit32.rshift(value, 16), 0xFFFF)
+					instruction.D = if temp < 0x8000 then temp else temp - 0x10000
+				elseif opmode == 5 then --[[ AE ]]
+					local temp = bit32.band(bit32.rshift(value, 8), 0xFFFFFF)
+					instruction.E = if temp < 0x800000 then temp else temp - 0x1000000
+				end
+				if usesAux then 
+					local aux = stream:readWord()
+					instruction.aux = aux
+				end
+				table_insert(writedInstructions , instruction)
+				return usesAux
 			end
-			for eh=5.1925001886746869e-10*1925854528,k do
-				local S={[B('\174{\252\170f\218\186','\222\t\147')]=eh-(841013029+-841013028),[B('\20@-0\3N-7\4','w/CC')]={},[B("%\224=S\"=/\250\'H>;","L\142N\'PH")]={},[B('\169?\19\199_ZT\228+O\182\"\15\215u@[\228\fR','\197V}\162\22\52\50\139b!')]={},[B('\tN\n\2u\177\180\30R(\20o\183\174\2','j!dq\1\208\218')]=376482488+-376482488,[B('\nA\6\179M\200\4K\r\169C\204','g ~\192\57\169')]=za[B('A\216yOq\196lN','3\189\24+')](za),[B('\235\254\155,\228\249\151\49\246','\133\139\246\\')]=za[B('\160\128\219\185\144\156\206\184','\210\229\186\221')](za),[B('\1\4\31\2','oq')]=za[B('\255\248\183*\207\228\162+','\141\157\214N')](za),[B('\26)\158-:\139','lH\236')]=za[B('_\135\242\4o\155\231\5','-\226\147\96')](za)~=-0/-1473234185}
-				if not(da>=(-1811813825+1775156864)+(1486219888+-1449562923))then
-				else
-					S[B('\161\2\166\t\180','\199n')]=za[B('c\143)^S\147<_','\17\234H:')](za)
-					local _g,Q,og,J={},{},{},za[B('\230\b\14l@\233\31?vb','\136mv\24\22')](za)
-					local Ta=J>-0*-986027781
-					S[B('\225\192\17~\199\249\196+D\216\230','\137\161b*\190')]=Ta
-					if Ta then
-						local zh,_e,nc=J,1229063860-1229063860,-969106749+969106749
-						if l>8.7699442630226534e-10*1140258102 then
-							zh=za[B('u\130\189\b\16z\149\140\18\50','\27\231\197|F')](za)
-							_e=za[B('\245O\247\234\52\250X\198\240\22','\155*\143\158b')](za)
-							nc=za[B('\162\207 \224]\173\216\17\250\127','\204\170X\148\v')](za)
+			for i = 1 , protoCount do
+				local proto = {
+					["protoId"] = i - 1,
+					["constants"] = {},
+					["instructions"] = {},
+					["lineInfoInstructions"] = {},
+					["constantsLength"] = 0,
+					["maxstacksize"] = stream:readByte(),
+					["numparams"] = stream:readByte(),
+					["nups"] = stream:readByte(),
+					["varArg"] = stream:readByte() ~= 0,
+				}
+				if LuauVersion >= 4 then -- Proto Flags!!
+					proto.flags = stream:readByte()
+					local resultTypedParams = {}
+					local resultTypedUpvalues = {}
+					local resultTypedLocals = {}
+					local allTypeInfoSize = stream:nextVarInt()
+					local hasTypeInfo = allTypeInfoSize > 0
+					proto.hasTypeInfo = hasTypeInfo
+					if hasTypeInfo then
+						local totalTypedParams = allTypeInfoSize
+						local totalTypedUpvalues = 0
+						local totalTypedLocals = 0
+						if TypesVersion > 1 then
+							totalTypedParams = stream:nextVarInt()
+							totalTypedUpvalues = stream:nextVarInt()
+							totalTypedLocals = stream:nextVarInt()
 						end
-						local function Tf()
-							local f,oe,Ba,jh,th
-							jh,f={[-3858]=32240,[-19979]=-25451,[30992]=32240,[9125]=-30578},function(Qa)
-								return jh[Qa- -21743]
-							end
-							oe=f(-12618)
-							repeat
-								while true do
-									if oe==-43681263369446/1428519307 then
-										th=_g
-										if zh>0*1706886301 then
-											oe=f(-41722)
-											break
-										end
-										oe=f(9249)
-									elseif oe==-51635319866608/2028813008 then
-										Ba=function(T)
-											local Eb,sf,ma,Wa,lb,Bg,Zf,fb
-											ma,lb={[-1525]=-28543,[10301]=-24296,[-19000]=-24845,[27669]=636,[-29399]=-2295},function(Pc)
-												return ma[Pc+-12995]
-											end
-											Zf=lb(-16404)
-											repeat
-												while true do
-													if Zf==8.2216529815066646e-07*1905942763 then
-														if(Eb>=(1038448255+-1038448255)/(-1741536573- -360964699)and fb>Wa)or((Eb<(-264187224+264187224)*(-331856975- -786762108)or Eb~=Eb)and fb<Wa)then
-															Zf=7.9941707110508652e-07*795579708
-														else
-															Zf=lb(-6005)
-														end
-													elseif Zf==9.240368766903255e-07*688284219 then
-														return Bg
-													elseif Zf==1042286688900/-454155420 then
-														Bg={}
-														Eb,fb,Wa=589263167/589263167,2012637279+-2012637278,T
-														Zf=lb(23296)
-													elseif Zf==1221357379+-1221381675 then
-														sf=fb;
-														if Wa~=Wa then
-															Zf=lb(40664)
-														else
-															Zf=-1438608505+1438610072
-														end
-													elseif Zf==1609053830+-1609082373 then
-														fb=fb+Eb;
-														sf=fb;
-														if fb~=fb then
-															Zf=-4.3843885182813682e-07*-1450601372
-														else
-															Zf=-990199477157/-631907771
-														end
-													elseif Zf==45223333005220/-1820218676 then
-														kf(Bg,za[B('>\214|o\14\202in','L\179\29\v')](za))
-														Zf=lb(-4.6182205081595924e-05*-248364061)
-													end
-												end
-											until Zf==29684823870664/1346189464
-										end
-										th=Ba(zh)
-										g(th,-909928885+909928886)
-										g(th,-651266927+651266928)
-										oe=f(1049697533+-1049723134)
-									elseif oe==1132411527-1132379287 then
-										return th
+						local function readTypedParams()
+							local typedParams = resultTypedParams
+							if totalTypedParams > 0 then
+								local function nextbytes(c)
+									local bytes = {}
+									for i = 1 , c do
+										table_insert(bytes, stream:readByte())
 									end
+									return bytes
 								end
-							until oe==-1.4328969345750053e-05*-742063141
-						end
-						local function gg()
-							local xe,lh,je,z,Z,Ce,a,rg,ac,Sg
-							z,Z={[-19583]=21754,[-22682]=22477,[-7025]=-18347,[-12352]=-16036,[32075]=16854,[12636]=16854,[-12985]=5276},function(Ih)
-								return z[Ih+-14197]
+								typedParams = nextbytes(totalTypedParams)
+								table_remove(typedParams, 1)
+								table_remove(typedParams, 1)
 							end
-							ac=Z(1212)
-							repeat
-								while true do
-									if ac==1047976228+-1047992264 then
-										xe=rg;
-										if lh~=lh then
-											ac=1568201719-1568196013
-										else
-											ac=3.5913747969615307e-06*368661049
-										end
-									elseif ac==-933178906+933201383 then
-										Sg,rg,lh=-1354749970- -1354749971,1623998043+-1623998042,_e
-										ac=Z(1845)
-									elseif ac==-4.7026268693403878e-05*-462592517 then
-										Ce=za[B('O\205\55\243\127\209\"\242','=\168V\151')](za)
-										je={[B('\128G\132[','\244>')]=Ce}
-										a[xe]=je
-										ac=Z(781512952044/108967227)
-									elseif ac==-396376176748/-299377777 then
-										if(Sg>=(-3487295805- -1564250814)+1.7590035607664805*1093258157 and rg>lh)or((Sg<(1764331552+-1764331552)*(2.990046809614007e+17/-166564255)or Sg~=Sg)and rg<lh)then
-											ac=-854555230+854560936
-										else
-											ac=Z(-5386)
-										end
-									elseif ac==-769775639+769792493 then
-										return a
-									elseif ac==9607323246628/1820948303 then
-										a=Q
-										if S[B("\'\237\57\235",'I\152')]>0*736139531 then
-											ac=Z(-8485)
-											break
-										end
-										ac=Z(26833)
-									elseif ac==1410108036+-1410126383 then
-										rg=rg+Sg;
-										xe=rg;
-										if rg~=rg then
-											ac=1071302171-1071296465
-										else
-											ac=-626190868272/-472953828
-										end
-									elseif ac==606410328+-606404622 then
-										ac=Z(-1855500234- -1855546506)
-									end
-								end
-							until ac==4847386175364/203040386
+							return typedParams
 						end
-						local function na()
-							local Cf,qa,Cg,uf,Kh,Zb,Hd,Dg,kd,oa,ih,mg,R
-							Dg,Cf={[-21896]=24462,[-4709]=-9506,[-31147]=-24116,[-3148]=-9506,[29142]=-27450,[-14414]=26872,[20037]=-16489,[-2513]=16866},function(te)
-								return Dg[te+-7510]
+						local function readTypedUpvalues()
+							local typedUpvalues = resultTypedUpvalues
+							if proto.nups > 0 then
+								for i = 1, totalTypedUpvalues do
+									local upvalueType = stream:readByte()
+									local info = {
+										type = upvalueType
+									}
+									typedUpvalues[i] = info
+								end
 							end
-							uf=Cf(4997)
-							repeat
-								while true do
-									if uf==2.6959687705286141e-05*996747451 then
-										qa,Cg,Hd=-1522096252/-1522096252,659312390/659312390,nc
-										uf=Cf(-23637)
-									elseif uf==119169656+-119179162 then
-										uf=Cf(22336434638976/-1552650816)
-									elseif uf==1573404340+-1573423260 then
-										Kh=za[B('@F}!pZh ','2#\28E')](za)
-										ih=za[B('\193\203I\238\241\215\\\239','\179\174(\138')](za)
-										Zb=za[B('s\169\247/\241|\190\198\53\211','\29\204\143[\167')](za)+(-2015713830- -2015713831)
-										kd=za[B('\173\170Gw\214\162\189vm\244','\195\207?\3\128')](za)+Zb-(-1908903273- -1908903274)
-										mg={[B('\134\210\130\206','\242\171')]=Kh,[B('ZB4\50[S6)',"(\'S[")]=ih,[B('\219hR\218hc\235','\168\28\51')]=Zb,[B('\247\204\246\242\209','\146\162')]=kd}
-										oa[R]=mg
-										uf=Cf(-548741220- -548768767)
-									elseif uf==-709392853- -709409719 then
-										oa=og
-										if nc>1097244560+-1097244560 then
-											uf=Cf(-6904)
-											break
-										end
-										uf=-5.0836912385732056e-05*-481185793
-									elseif uf==-1489180269+1489204731 then
-										return oa
-									elseif uf==2.1791593845866668e-05*-1106665266 then
-										R=Cg;
-										if Hd~=Hd then
-											uf=Cf(4362)
-										else
-											uf=14486496-14513946
-										end
-									elseif uf==-1.3531086326599574e-05*2028661952 then
-										if(qa>=(-0*1041722950)*(-3.4245078917928991e+18/2089372276)and Cg>Hd)or((qa<-4.3120970342613072*434353304-(-3115255365- -1242281771)or qa~=qa)and Cg<Hd)then
-											uf=Cf(2801)
-										else
-											uf=-1605344411+1605325491
-										end
-									elseif uf==-1148149551+1148133062 then
-										Cg=Cg+qa;
-										R=Cg;
-										if Cg~=Cg then
-											uf=16311838352642/-1715951857
-										else
-											uf=Cf(36652)
-										end
-									end
-								end
-							until uf==16468637578656/846629528
+							return typedUpvalues
 						end
-						_g=Tf()
-						Q=gg()
-						og=na()
+						local function readTypedLocals()
+							local typedLocals = resultTypedLocals
+							if totalTypedLocals > 0 then
+								for i = 1, totalTypedLocals do
+									local localType = stream:readByte()
+									local localRegister = stream:readByte()
+									local localStartPC = stream:nextVarInt() + 1
+									local localEndPC = stream:nextVarInt() + localStartPC - 1
+									local info = {
+										type = localType,
+										register = localRegister,
+										startPC = localStartPC,
+										endPC = localEndPC
+									}
+									typedLocals[i] = info
+								end
+							end
+							return typedLocals
+						end
+						resultTypedParams = readTypedParams()
+						resultTypedUpvalues = readTypedUpvalues()
+						resultTypedLocals = readTypedLocals()
 					end
-					S[B('y\142\225\171#]\150\227\175*~','\r\247\145\206G')]=_g
-					S[B('\214>z\203\166\131\210\49k\194\183\179\209','\162G\n\174\194\214')]=Q
-					S[B('\216W\199=\226\224A\212\57\234\223','\172.\183X\134')]=og
+					proto.typedParams = resultTypedParams
+					proto.typedUpvalues = resultTypedUpvalues
+					proto.typedLocals = resultTypedLocals
 				end
-				S[B('\15\180\176\26\234\234\232D2\t\180\176\"\253\241\236D3','f\218\195n\152\159\139\48[')]=za[B('X\162\255\24\27W\181\206\2\57','6\199\135lM')](za)
-				S[B('9\185(T\182{\167\157\190:\185\52C\167v\129\157\190','N\203A \211\31\238\243\205')]=qb(S[B('\155\164\181\152\14\146&.L\157\164\181\160\25\137\".M','\242\202\198\236|\231EZ%')])
-				local pa=false
-				for Zd=-387257196/-387257196,S[B('A}\237o\212\246\26\255\196G}\237W\195\237\30\255\197','(\19\158\27\166\131y\139\173')]do
-					if not(pa)then
-					else
-						pa=false
+				proto.instructionsLength = stream:nextVarInt()
+				proto.writedInstructions = table_create(proto.instructionsLength)
+				local skip_next = false
+				for i = 1, proto.instructionsLength do
+					if skip_next then
+						skip_next = false
 						continue
 					end
-					pa=pe(Zd,S[B('\227\177$\251\26\201[&\138\224\177\56\236\v\196}&\138','\148\195M\143\127\173\18H\249')])
+					skip_next = __dec_instruction(i , proto.writedInstructions)
 				end
-				S[B("\25\229\0\137\247\230=\14\249\"\159\237\224\'\18",'z\138n\250\131\135S')]=za[B('\239yeW<\224nTM\30','\129\28\29#j')](za)
-				for Aa=1283865331/1283865331,S[B('\172\52 \240\157/\252\187(\2\230\135)\230\167','\207[N\131\233N\146')]do
-					local ue=za[B('\213\247If\229\235\\g','\167\146(\2')](za)
-					local Md
-					if ue==Ge[B('\215\183\56V\189U\218\172)K\160X','\148\248v\5\233\20')]then
-						fc+=546969858+-546969857
-						Md=B('\227\228\225','\141')
+				proto.constantsLength = stream:nextVarInt()
+				for i = 1 , proto.constantsLength do
+					local constantType = stream:readByte()
+					local constant
+					if constantType == LuauBytecodeTag.CONSTANT_NIL then
+						NIL_CONSTANTS += 1
+						constant = "nil"
 						continue
-					elseif not(ue==Ge[B(B('\189,?\147\128\14\162\226\161!>\143\152\n\173\248','\239\133\172\175\31;\t9'),B('\199-\188\231\29\191\132\a','\214\203a\136'))])then
-						if not(ue==Ge[B(B('\242\207\178\181\148\150\18\229\223\178\179\141\149\25\227','\158\14Uf\127<t'),B('&\141\204\137\188\142!','\t\3e'))])then
-							if not(ue==Ge[B(B('?+\209\154\136!\180(;\204\157\142)\180;','\25D\167\29\15O\230'),B('\136\200\152\57;\143\241','\237\232\160'))])then
-								if not(ue==Ge[B(B('~h\184v\144\186fix\191h\148\180zi','\128\238@Z\222\139\6'),B('\203nk\t\189\173X','v\167\221'))])then
-									if ue==Ge[B('A\250i\248\221\29\53V\234s\234\203\16>',"\2\181\'\171\137\\{")]then
-										local Ua,Me,yh,j,xc,ic,ah,Vf
-										Ua,ah={[21462]=-23,[-2447]=-13426,[13700]=-32537,[20517]=1865,[-12857]=-32537,[-19730]=-17775,[13176]=4921,[4919]=-17775,[18640]=30403},function(Za)
-											return Ua[Za+8382]
-										end
-										xc=ah(10258)
-										repeat
-											while true do
-												if xc==1943283253-1943252850 then
-													Vf=za[B('\0\30\155\210\b\15\t\170\200*','n{\227\166^')](za)
-													Md=qb(Vf)
-													yh,j,ic=7.1704209632035227e-10*1394618259,917341536+-917341535,Vf
-													xc=ah(13080)
-												elseif xc==1952678623-1952678646 then
-													Me=j;
-													if ic~=ic then
-														xc=-1943245287- -1943212750
-													else
-														xc=ah(-28112)
-													end
-												elseif xc==-12566817745650/706993966 then
-													if(yh>=(0/-1875337637)*(-2.1295283041339825*810026285)and j>ic)or((yh<-0.76146743281902984*-1204590859-1.2186245891262705e+18/1328553476 or yh~=yh)and j<ic)then
-														xc=ah(-21239)
-													else
-														xc=ah(12135)
-													end
-												elseif xc==840943349+-840956775 then
-													j=j+yh;
-													Me=j;
-													if j~=j then
-														xc=ah(5318)
-													else
-														xc=ah(-3463)
-													end
-												elseif xc==-489925531575/-262694655 then
-													Md[Me]=za[B('kE\234\141\194dR\219\151\224','\5 \146\249\148')](za)
-													xc=ah(894110042-894120871)
-												elseif xc==1124622162+-1124654699 then
-													xc=ah(4794);
-													break;
-												end
-											end
-										until xc==680307896-680302975
-									elseif ue==Ge[B('\23\213\25f\243\n\240\168\v\217\27z\244\30\236\185','T\154W5\167K\190\252')]then
-										Md=za[B('\252ym\22\147\243n\\\f\177','\146\28\21b\197')](za)
-									elseif not(ue==Ge[B(B('\n\171a\255Q^\130\29\187y\233FK\131\27','\160M\1\208\221\201\218'),B('\26\232\207\143\153\55\229','\243A\225'))])then
-									else
-										local La,Tb,vd,rh
-										La=za[B('\14\229\163*&\236\180?\20','\96\128\219^')](za)
-										Tb=za[B('\209\130EO\249\139RZ\203','\191\231=;')](za)
-										vd=za[B('6\187\150\158\30\178\129\139,','X\222\238\234')](za)
-										rh=za[B('\234E6\182\194L!\163\240','\132 N\194')](za)
-										Md=Bc(B('\250*\137|\208','\172V'),Mf({La,Tb,vd,rh}))
-									end
-								else
-									Md=za[B('3\141\156*\22\135\143*','A\232\253N')](za)
-								end
-							else
-								local ch=za[B('\244\30m\223\23\251\t\\\197\53','\154{\21\171A')](za)
-								local ub=stringList[ch]
-								Md=ub
-							end
+					elseif constantType == LuauBytecodeTag.CONSTANT_BOOLEAN then
+						constant = stream:readByte() ~= 0
+					elseif constantType == LuauBytecodeTag.CONSTANT_NUMBER then
+						constant = stream:nextDouble()	
+					elseif constantType == LuauBytecodeTag.CONSTANT_STRING then
+						local stringId = stream:nextVarInt()
+						local string = stringList[stringId]
+						constant = string
+					elseif constantType == LuauBytecodeTag.CONSTANT_IMPORT then
+						constant = stream:readWord()
+					elseif constantType == LuauBytecodeTag.CONSTANT_TABLE then
+						local dataLength = stream:nextVarInt()
+						constant = table_create(dataLength)
+						for i = 1, dataLength do
+							constant[i] = stream:nextVarInt()
+						end
+					elseif constantType == LuauBytecodeTag.CONSTANT_CLOSURE then
+						constant = stream:nextVarInt()
+					elseif constantType == LuauBytecodeTag.CONSTANT_VECTOR then
+						local x , y , z , w
+						x = stream:nextFloat()
+						y = stream:nextFloat()
+						z = stream:nextFloat()
+						w = stream:nextFloat()
+						constant = string_format("V|%*|" , table_concat({x,y,z,w}))
+					end
+					if env()[constant] then
+						table_insert(GLOBAL_CONSTANTS, constant)
+					end
+					table_insert(proto.constants , constant)
+				end
+				local sizep = stream:nextVarInt()
+				local protolist = table_create(sizep)
+				for i = 1, sizep do
+					protolist[i] = stream:nextVarInt() + 1
+				end
+				local linedefined = stream:nextVarInt()
+				local debugnameindex = stream:nextVarInt()
+				local debugname 
+				if debugnameindex ~= 0 then
+					debugname = stringList[debugnameindex]
+				else 
+					debugname = AppSettings.MissingProtoName
+				end
+				proto.innerProtos = protolist
+				proto.name = debugname
+				proto.linedefined = linedefined
+				local lineinfoenabled = stream:readByte() ~= 0
+				local instructionlineinfo 
+				if lineinfoenabled then
+					local linegaplog2 = stream:readByte()
+					local sizecode = proto.instructionsLength
+					local intervals = bit32.rshift((sizecode - 1), linegaplog2) + 1
+					local lineinfo = table_create(sizecode)
+					local lastoffset = 0
+					for j = 1, sizecode do
+						lastoffset = lastoffset + stream:readByte()
+						lineinfo[j] = lastoffset
+					end
+					local abslineinfo = table_create(intervals)
+					local lastline = 0
+					for j = 1, intervals do
+						lastline = lastline + stream:readWord()
+						abslineinfo[j] = lastline % (2^32)
+					end
+					instructionlineinfo = table_create(sizecode)
+					for pc = 1, sizecode do
+						local intervalIndex = bit32.rshift(pc - 1, linegaplog2) + 1
+						local baseLine = abslineinfo[intervalIndex]
+						local offset = lineinfo[pc]
+						if baseLine and offset then
+							instructionlineinfo[pc] = baseLine + offset
 						else
-							Md=za[B('\222\204\t\a\228\223\220\19\31\197','\176\169qs\160')](za)
+							instructionlineinfo[pc] = proto.linedefined or 0
 						end
-					else
-						Md=za[B('6\150\vy\6\138\30x','D\243j\29')](za)~=-1164200582- -1164200582
 					end
-					if td()[Md]then
-						kf(kb,Md)
-					end
-					kf(S[B('Ri\231\196Eg\231\195B','1\6\137\183')],Md)
 				end
-				local ge=za[B('a\203<m(n\220\rw\n','\15\174D\25~')](za)
-				local E=qb(ge)
-				for sd=5.4993364954279878e-10*1818401185,ge do
-					E[sd]=za[B('\179\202N]\207\188\221\127G\237','\221\175\54)\153')](za)+(-1692318605- -1692318606)
+				if instructionlineinfo then
+					proto.instructionlineinfo = instructionlineinfo
 				end
-				local sg,Yc=za[B('\25T\3Hx\22C2RZ','w1{<.')](za),za[B(']\181/\2\129R\162\30\24\163','3\208Wv\215')](za)
-				local Zg
-				if not(Yc~=(0/2130213960)/(-550714995+1072494840))then
-					Zg=Ig[B('\144D\244E\181aF\227\175B\243Y\146nL\214','\221-\135\54\220\15!\179')]
-				else
-					Zg=stringList[Yc]
-				end
-				S[B('\196j\212~\231\253v\213o\250\222','\173\4\186\27\149')]=E
-				S[B('\199 \196$','\169A')]=Zg
-				S[B('\15\2\215\22C\6\r\208\29B\a',"ck\185s\'")]=sg
-				local vg=za[B('\29\206y\239-\210l\238','o\171\24\139')](za)~=0*272066401
-				local rc
-				if not(vg)then
-				else
-					local F,q,Mc,Pe,Pa,df,p,ta,Yg,If,Ee,Lb,Ac,Ib,Kb,ug,Bd,Pb,Jh,Ff,wc,Od,mh,wh,Kg
-					Ib,F={[-8659]=-24672,[-12056]=9851,[6490]=-12057,[-29049]=-19649,[23087]=-24934,[18459]=-3854,[-28111]=7788,[26348]=-18503,[20712]=-24423,[4656]=-14313,[18994]=29194,[26275]=-14313,[17952]=4478,[13159]=23186,[-1820]=9851,[26692]=10115},function(ea)
-						return Ib[ea+-32629]
-					end
-					p=F(59321)
-					repeat
-						while true do
-							if p==1702330509-1702306522 then
-								Jh=Jh+za[B('\161oz\181\132ei\181','\211\n\27\209')](za)
-								Kg[Bd]=Jh%((-3987705656/-1993852828)^(1493119963-1493119931))
-								p=F(1754782150-1754723173)
-							elseif p==1711046241-1711014132 then
-								Ac=Kb;
-								if q~=q then
-									p=1154380504+-1154398831
-								else
-									p=F(4518)
-								end
-							elseif p==-1790711425- -1790693098 then
-								Kg=qb(df)
-								Jh=693028391+-693028391
-								wc,Od,Lb=df,-6.9587784697779618e-10*-1437033819,792485603+-792485602
-								p=F(3580)
-							elseif p==19321741+-19341390 then
-								Bd=Lb;
-								if wc~=wc then
-									p=F(58904)
-								else
-									p=31492462685184/-1276445472
-								end
-							elseif p==721336706+-721348763 then
-								rc[Mc]=Pb+Pa
-								p=F(1959836372-1959805563)
-							elseif p==-18023736222206/-617378099 then
-								if(Yg>=(-0*368897755)/(-1.8793667587733462*835579646)and If>Ff)or((Yg<(-0*-566519142)/(2105759077-941762196)or Yg~=Yg)and If<Ff)then
-									p=F(53341)
-								else
-									p=480020376+-480044493
-								end
-							elseif p==-1867113362- -1867089245 then
-								mh=bit32[B('\239n?\244{#','\157\29W')](Mc- -1168616859/-1168616859,ug)+(207639813+-207639812)
-								Pb=Kg[mh]
-								Pa=Pe[Mc]
-								if Pb and Pa then
-									p=F(39119)
-									break
-								else
-									p=F(55716)
-									break
-								end
-								p=-2013693337- -2013703188
-							elseif p==11382366964584/1461526318 then
-								if(Ee>=(0/-1519285996)*(0.74128302981040595*-524650756)and Kb>q)or((Ee<(0*-1471628056)/(-1.1032903420770219*1508134651)or Ee~=Ee)and Kb<q)then
-									p=-7581462667518/413677234
-								else
-									p=6667019001225/-310889205
-								end
-							elseif p==-6414257273526/-1432393317 then
-								Kb=Kb+Ee;
-								Ac=Kb;
-								if Kb~=Kb then
-									p=-1.0348992196708549e-05*1770897074
-								else
-									p=3.9736794453710893e-05*195989639
-								end
-							elseif p==8290681196910/819642234 then
-								ug=za[B('\28\53Tf,)Ag','nP5\2')](za)
-								wh=S[B('U\212?\0\189\226\156UFS\212?8\170\249\152UG','<\186Lt\207\151\255!/')]
-								df=bit32[B('5\f\132.\25\152','G\127\236')]((wh- -6.3765293117192115e-10*-1568251240),ug)+(1121714814-1121714813)
-								Pe=qb(wh)
-								ta=970133707+-970133707
-								q,Ee,Kb=wh,-7.9685224493788377e-10*-1254937796,-7.2425120969271416e-10*-1380736389
-								p=0.00011133568494383284*288398100
-							elseif p==-963416018- -963394573 then
-								ta=ta+za[B('\203\142\214\149\251\146\195\148','\185\235\183\241')](za)
-								Pe[Ac]=ta
-								p=F(-2.7962624643208622e-05*-1808878839)
-							elseif p==843097749+-843087898 then
-								p=F(0.00016841355763860401*271878349)
-							elseif p==-7054907203596/288863252 then
-								p=F(51088);
-								break;
-							elseif p==-8.6276115197783447e-06*1658975948 then
-								rc=qb(wh)
-								If,Ff,Yg=920101028/920101028,wh,-2.9121391966192487e-09*-343390179
-								p=-1.464689643126946e-05*1623961780
-							elseif p==9.3148964283936035e-05*-267678768 then
-								rc[Mc]=S[B('g\177D\243\6n\190C\248\ao','\v\216*\150b')]or-84946806- -84946806
-								p=F(1.2968388929504186e-05*1586395975)
-							elseif p==-8.3641426889125809e-05*284380610 then
-								Mc=If;
-								if Ff~=Ff then
-									p=9.3954647961016794e-05*-259944564
-								else
-									p=F(51623)
-								end
-							elseif p==-20029953691465/1082524655 then
-								Lb=Lb+Od;
-								Bd=Lb;
-								if Lb~=Lb then
-									p=1950674125-1950688438
-								else
-									p=F(23970)
-								end
-							elseif p==0.00017978727767191277*128963519 then
-								If=If+Yg;
-								Mc=If;
-								if If~=If then
-									p=-1678934444- -1678910021
-								else
-									p=255183841+-255154647
-								end
-							elseif p==705821810+-705846482 then
-								if(Od>=(2098330355-2098330355)*(-102125111-1340423250)and Lb>wc)or((Od<(-0*113245889)/(1.1212835039429157e+18/-535273954)or Od~=Od)and Lb<wc)then
-									p=F(37285)
-								else
-									p=-2.3243347843140431e-05*-1031994193
-								end
-							end
+				local hasDebugInfo = stream:readByte() ~= 0
+				proto.hasDebugInfo = hasDebugInfo
+				if hasDebugInfo then
+					local totalDebugLocals = stream:nextVarInt()
+					local function readDebugLocals()
+						local debugLocals = {}
+						for i = 1, totalDebugLocals do
+							local localName = stringList[stream:nextVarInt()]
+							local localStartPC = stream:nextVarInt()
+							local localEndPC = stream:nextVarInt()
+							local localRegister = stream:readByte()
+							local info = {
+								name = localName,
+								startPC = localStartPC,
+								endPC = localEndPC,
+								register = localRegister
+							}
+							debugLocals[i] = info
 						end
-					until p==1800838409-1800842263
-				end
-				if not(rc)then
-				else
-					S[B('\n\v\202;WxL\238\136\f\v\213&KhF\244\135\f','ce\185O%\r/\154\225')]=rc
-				end
-				local ce=za[B('\141=\171^\189!\190_','\255X\202:')](za)~=149834396+-149834396
-				S[B('\221\29\96\"?\201\192\27Z\b<\196','\181|\19fZ\171')]=ce
-				if ce then
-					local xa=za[B('\211w\178\144J\220\96\131\138h','\189\18\202\228\28')](za)
-					local function jd()
-						local Jf,Sd,Ie,hf,kg,Wf,h,Gd,Wb,Fd,Ab,G,Oe
-						hf,Ab={[14026]=-1316,[-25172]=-13139,[4604]=-10411,[25571]=18526,[12298]=23531},function(ka)
-							return hf[ka-22211]
-						end
-						Wb=Ab(34509)
-						repeat
-							while true do
-								if Wb==19095425430592/-1453339328 then
-									G=h;
-									if Sd~=Sd then
-										Wb=Ab(36237)
-									else
-										Wb=Ab(47782)
-									end
-								elseif Wb==-3.3328818156435927e-06*394853485 then
-									return kg
-								elseif Wb==-1.3572151810475535e-05*-1733770763 then
-									kg={}
-									Sd,Wf,h=xa,-1719355271+1719355272,942576552/942576552
-									Wb=Ab(-2961)
-								elseif Wb==2080878357+-2080859831 then
-									if(Wf>=(-0*656647596)*(1.0971147608845597*-1085433399)and h>Sd)or((Wf<(1621196838+-1621196838)*(2051574476+-237935578)or Wf~=Wf)and h<Sd)then
-										Wb=-33716876732/25620727
-									else
-										Wb=-60313083248372/1877391622
-									end
-								elseif Wb==1.755016298809901e-05*-593213864 then
-									h=h+Wf;
-									G=h;
-									if h~=h then
-										Wb=1900176115+-1900177431
-									else
-										Wb=-833900626- -833919152
-									end
-								elseif Wb==-1812206154+1812174028 then
-									Ie=stringList[za[B('v3u\141ty$D\151V','\24V\r\249\"')](za)]
-									Gd=za[B('>\198\244u\153\49\209\197o\187','P\163\140\1\207')](za)
-									Jf=za[B('\173o\248a\191\162x\201{\157','\195\n\128\21\233')](za)
-									Oe=za[B('\184\231<e\136\251)d','\202\130]\1')](za)
-									Fd={[B('\169Q\170U','\199\48')]=Ie,[B('\162\218\217\163\218\232\146','\209\174\184')]=Gd,[B('WqVOq','2\31')]=Jf,[B('\2\251=\134\3\234?\157','p\158Z\239')]=Oe}
-									kg[G]=Fd
-									Wb=Ab(-83040417- -83067232)
-								end
-							end
-						until Wb==3270680903444/1075528084
+						return debugLocals
 					end
-					S[B('\r\178\n\132\205%\184\v\144\198\26','i\215h\241\170')]=jd()
-					local Hf=za[B('\182\152\211m\240\185\143\226w\210','\216\253\171\25\166')](za)
-					local function Bb()
-						local A,Wd,Ng,C,zb,Yd,ph,ie,Og,Qc
-						Wd,Og={[11604]=2333,[21647]=7526,[-19130]=2333,[-20572]=5719},function(Fc)
-							return Wd[Fc-3801]
+					proto.debugLocals = readDebugLocals()
+					local totalDebugUpvalues = stream:nextVarInt()
+					local function readDebugUpvalues()
+						local debugUpvalues = {}
+						for i = 1, totalDebugUpvalues do
+							local upvalueName = stringList[stream:nextVarInt()]
+							local info = {
+								name = upvalueName
+							}
+							debugUpvalues[i] = info
 						end
-						Ng=Og(-16771)
-						repeat
-							while true do
-								if Ng==-2.9197723768983353e-06*-799034890 then
-									return Qc
-								elseif Ng==-2.3263821111621714e-05*-1354979470 then
-									if(C>=1.4777917361863251e+17/269483556+(-1880101853- -1331722665)and ph>Yd)or((C<(-0*-960085244)/(-1.0079970597064289e+18/-1834699339)or C~=C)and ph<Yd)then
-										Ng=-1330690526- -1330692859
-									else
-										Ng=1.2702252050345361e-05*-1221515676
-									end
-								elseif Ng==-2874661075289/2130957061 then
-									zb=ph;
-									if Yd~=Yd then
-										Ng=Og(-15329)
-									else
-										Ng=63199759280336/2004941288
-									end
-								elseif Ng==-1607455355+1607461074 then
-									Qc={}
-									Yd,ph,C=Hf,9.508968794706179e-10*1051638744,41462314+-41462313
-									Ng=-7.6754525001572325e-07*1757551102
-								elseif Ng==556523419392/-35867712 then
-									ie=stringList[za[B('\182\195\134\144\21\185\212\183\138\55','\216\166\254\228C')](za)]
-									A={[B('\140\218\143\222','\226\187')]=ie}
-									Qc[zb]=A
-									Ng=Og(1820134167-1820108719)
-								elseif Ng==-1619443380+1619450906 then
-									ph=ph+C;
-									zb=ph;
-									if ph~=ph then
-										Ng=Og(15405)
-									else
-										Ng=1.5687635806361947e-05*2009353123
-									end
-								end
-							end
-						until Ng==-330780418+330787704
+						return debugUpvalues
 					end
-					S[B('\b\128\b\t!\225\28\147\v\16\51\209\31','l\229j|F\180')]=Bb()
+					proto.debugUpvalues = readDebugUpvalues()
 				end
-				kf(Bf,S)
+				table_insert(protoList , proto)
 			end
-			local vb=za[B('y\170s\231gv\189B\253E','\23\207\v\147\49')](za)+(1222204940+-1222204939)
-			local Ke=Bf[vb]
-			local function Ef()
-				local tg,cf,Gg={},{[-401433619+401433621]=B('\241H\254%\4\169\27(\239a\200\20\20\152\23|','\157\23\161wq\199HM')},{[1272958793/1272958793]=B('\243\191u\5\210|\206\179l\t\251g','\160\208\24\96\148\t')}
-				local function hc(bc)
-					local mb,ed={},{}
-					for Ka,Hc in ipairs(bc[B('VCM\194\55\217\205\171\178UCQ\213&\212\235\171\178','!1$\182R\189\132\197\193')])do
-						local ae,fd,bf,_h
-						_h,ae={[6944]=22322,[18870]=-25,[-25291]=-9134,[20945]=-1117},function(Ve)
-							return _h[Ve+3243]
+			local mainProtoId = stream:nextVarInt() + 1
+			local mainproto = protoList[mainProtoId]
+			local function _ldecompile()
+				local main = {}
+				local referenced_indexes = {
+					[2] = "l__RunService__1" 
+				}
+				local refenced_functions = {
+					[1] = "SomeFunction"
+				}
+				local function decomp(proto)
+					local str = {}
+					local linesMap = {}
+					for pc, instruction in ipairs(proto.writedInstructions) do
+						local line = proto.instructionlineinfo[pc]
+						if line then
+							linesMap[line] = linesMap[line] or {}
+							table.insert(linesMap[line], {pc , instruction})
 						end
-						bf=ae(17702)
-						repeat
-							while true do
-								if bf==16701484016780/-1828496170 then
-									ed[fd]=ed[fd]or{}
-									table[B('\21k\164\25w\163','|\5\215')](ed[fd],{Ka,Hc})
-									bf=ae(-2658892035300/-718425300)
-								elseif bf==-486366649+486365532 then
-									fd=bc[B('v\27\134U\179\165\208\220\184p\27\153H\175\181\218\198\183p','\31u\245!\193\208\179\168\209')][Ka]
-									if fd then
-										bf=ae(-28534)
-										break
-									end
-									bf=0.0054980241398776943*4060004
-								elseif bf==-1.2655943791571067e-05*-1763756253 then
-									bf=ae(15627);
-									break;
-								end
-							end
-						until bf==-1873199932+1873199907
 					end
-					local function Gf(zc)
-						local fg,Pd,Ch,jf
-						fg,Pd={[-27894]=-9079,[-15359]=-9079,[17722]=-19673,[15349]=-17239},function(Xg)
-							return fg[Xg- -31368]
+					local function formatRegister(register)
+						local parameterRegister = register + 1
+						if parameterRegister < proto.numparams + 1 then
+							return ARG_RENAME:format(((proto.numparams - proto.numparams) + parameterRegister))
 						end
-						jf=Pd(-16019)
-						repeat
-							while true do
-								if jf==0.00010643263912383629*-85302780 then
-									return Ia[B('\240r\22\251|\16','\150\29d')](Ia,(zc-bc[B('j\145\" e\150.=w','\4\228OP')]))
-								elseif jf==-1.0872440718652401e-05*1585568544 then
-									Ch=zc+5.2402431334052267e-10*1908308402
-									if Ch<bc[B('\216\202\nw\215\205\6j\197','\182\191g\a')]+(1820468979-1820468978)then
-										jf=Pd(-13646)
-										break
-									end
-									jf=Pd(-46727)
-								elseif jf==2.1638537554099343e-05*-909164954 then
-									return Fh[B('\144\168\171\155\166\173','\246\199\217')](Fh,((bc[B('\250\48\231n\245\55\235s\231','\148E\138\30')]-bc[B('.cx\235!dt\246\51','@\22\21\155')])+Ch))
-								end
+						return VariableRename:format((register - proto.numparams))
+					end
+					local function FormatVariable(register)
+						return "local " .. formatRegister(register) .. " = "
+					end
+					local function generate_ast(instruction)
+						local constants = proto.constants
+						local AST = {
+							["type"] = "Variable",
+							["identifier"] = VariableRename:format(instruction.A),
+							["declarations"] = {}
+						}
+						local opname = instruction.opname
+						local A = instruction.A
+						local B = instruction.B
+						if opname == "CALL" then
+							local func = refenced_functions[A] or formatRegister(A)
+							for i = 1 , (B - 1) do
+								print(i)
 							end
-						until jf==-1.438659385298489e-05*1928044976
-					end
-					local function Qd(Ya)
-						return B(']\154\143P\153\204','1\245\236')..Gf(Ya)..B('\137\148\137','\169')
-					end
-					local function O(tc)
-						local le,hh,Nd,vc,Ja,Hb,Ma,Wg,Mb,re,Ag,se,Dc
-						vc,Hb={[20738]=-32518,[9747]=-32468,[8675]=23211,[22196]=-2189,[15537]=23211,[-2891]=21249,[-29463]=-18700,[15356]=21430,[-24618]=9305},function(ra)
-							return vc[ra- -1696]
 						end
-						Nd=Hb(-26314)
-						repeat
-							while true do
-								if Nd==37808255434248/1779295752 then
-									return re
-								elseif Nd==1025058913+-1025061102 then
-									se=se+Ma;
-									Ja=se;
-									if se~=se then
-										Nd=1133866274-1133843063
-									else
-										Nd=Hb(19042)
-									end
-								elseif Nd==-139067408- -139034940 then
-									print(Ja)
-									Nd=Hb(2.6159672143508797e-05*783648965)
-								elseif Nd==-519537156- -519518456 then
-									hh=Gg[Dc]or Gf(Dc)
-									Wg,se,Ma=(Ag-(770405336-770405335)),-1563030131- -1563030132,-2137638410/-2137638410
-									Nd=Hb(13660)
-								elseif Nd==2004194848+-2004171637 then
-									Nd=Hb(-1072375918713/233785899)
-								elseif Nd==-22449033402460/-1047551722 then
-									Ja=se;
-									if Wg~=Wg then
-										Nd=Hb(13841)
-									else
-										Nd=62185457324310/-1912339545
-									end
-								elseif Nd==-462802296+462811601 then
-									le=bc[B('jQ;\181}_;\178z','\t>U\198')]
-									re={[B('\181\0\177\28','\193y')]=B('F\19|\aq\16b\v','\16r\14n'),[B('\183\56yh\243\183:uc\245','\222\\\28\6\135')]=Ia[B('\217\a\150\210\t\144','\191h\228')](Ia,tc[B('\251','\186')]),[B('\nr\178\200\205\210\15c\184\203\194\211','n\23\209\164\172\160')]={}}
-									Mb=tc[B('0z\213>g\222','_\n\187')]
-									Dc=tc[B('{',':')]
-									Ag=tc[B('L','\14')]
-									if Mb==B('<\173\51\160','\127\236')then
-										Nd=Hb(-31159)
-										break
-									end
-									Nd=-3.3718944830388757e-05*-630179862
-								elseif Nd==57530502+-57563020 then
-									if(Ma>=(-322729171- -322729171)*(1212859028+-1185561783)and se>Wg)or((Ma<(716618795+-716618795)/(1.0096004781584718e+18/-1756673785)or Ma~=Ma)and se<Wg)then
-										Nd=Hb(6979)
-									else
-										Nd=Hb(8051)
-									end
-								end
-							end
-						until Nd==-53302888072470/-1805836910
+						return AST
 					end
-					for dd,Yf in ed do
-						local o,Df,ba,Nc,L,wg,de,tf,Sa,Xe,Dh,_a,Va
-						Nc,Sa={[7084]=-2398,[-3811]=27902,[-13929]=27902,[18171]=-2398,[21882]=17794,[-24837]=-29727,[-31094]=-20406,[-13902]=-5668,[-30173]=27902,[-10128]=-31855,[-772]=11035,[-15077]=-271,[9121]=-25509,[5989]=7920},function(Mg)
-							return Nc[Mg+-25754]
+					for _ , data in linesMap do
+						local line_internal = {}
+						local line = {}
+						for position , raw in data do
+							local block , instruction = raw[1] , raw[2]						
+							if instruction then
+								generate_ast(instruction)
+							end
 						end
-						wg=Sa(31743)
-						repeat
-							while true do
-								if wg==1926241927-1926224133 then
-									de,ba=Xe[-554301469- -554301470],Xe[-341305238+341305240]
-									if ba then
-										wg=Sa(11852)
-										break
-									end
-									wg=Sa(32838)
-								elseif wg==1435732643-1435732914 then
-									wg=20197588052735/1830320621;
-								elseif wg==1745630441+-1745650847 then
-									Va,o,Dh=r(Va)
-									wg=Sa(9.1033804176437861e-06*1298968016)
-								elseif wg==16602422419440/2096265457 then
-									_a={}
-									Df={}
-									Va,o,Dh=Yf
-									if V(Va)~=B('\220a\168\135\206}\169\138','\186\20\198\228')then
-										wg=Sa(15626)
-										break
-									end
-									wg=-138966238237/512790547
-								elseif wg==45949034470696/1646800748 then
-									wg=Sa(2.8602280795751188e-05*373291909)
-								elseif wg==-2079174850- -2079145123 then
-									Va,o,Dh=L[B('\19\171\186\56\145\161','L\244\211')](Va)
-									wg=Sa(2.1931920191306634e-05*1000505191)
-								elseif wg==2057915347+-2057904312 then
-									tf,Xe=Va(o,Dh);
-									Dh=tf;
-									if Dh==nil then
-										wg=-1901886834+1901866845
-									else
-										wg=Sa(47636)
-									end
-								elseif wg==-1.5156610724553424e-05*1318830467 then
-									kf(mb,Mf(Df,B('\200','\194')))
-									wg=Sa(34875)
-									break
-								elseif wg==-18301089380210/574512302 then
-									L=fe(Va)
-									if L~=nil and L[B('\202\27\253\225!\230','\149D\148')]~=nil then
-										wg=Sa(917)
-										break
-									elseif V(Va)==B('\166\49\176<\183','\210P')then
-										wg=Sa(-5340)
-										break
-									end
-									wg=Sa(-4419)
-								elseif wg==-666082450748/277765826 then
-									wg=Sa(-2118644437- -2118669419)
-								elseif wg==2128355107632/-375503724 then
-									O(ba)
-									wg=Sa(-1940082142- -1940126067)
-								end
-							end
-						until wg==392439204+-392464713
+						table_insert(str , table_concat(line , "\n"))
 					end
-					return Mf(mb,B('=','7'))
+					return table_concat(str , "\n")
 				end
-				print(Ke)
-				kf(tg,hc(Ke))
-				return Mf(tg,B('\165','\175'))
+				print(mainproto)
+				table_insert(main , decomp(mainproto))
+				return table_concat(main , "\n")
 			end
-			kf(n,Ef())
+			table_insert(source , _ldecompile())
 		end
-		local function gd()
-			assert(Kc==true,B('\244\25%6b\251\56\225\197\138%\222A\208X.#s\250{\250\206\207c\140\b','\178xLZ\a\159\24\149\170\170B\172 ')..tostring(dg)..B('\b','!'))
-			assert(type(dg)==B('fAv|[c','\21\53\4'),Bc(B('M\170\244V\215G\175\5\169\15\96(\163vFyJ\166F\202y \191\184w\176\240^\213I\235@\179\6q.\180|F<F\239O\213xt\186\186-','\4\196\130\55\187.\203%\203v\20M\192\25\"\28j\207(\186\fT\159\144'),type(dg)))
-			assert(Na==B('\242\2\223\2','\190w')or Na==B('f_K','*'),Bc(B('\178\157\132\f\202\24\172\227d:\170C\6\230\189\139\217\202$\244\195\51\171\134\147B\211Q\173\187X>\167PC\244\248\158\197\215k\191\201\50','\231\243\242m\166q\200\195([\196$&\144\216\249\170\163K\154\227\27'),Na))
-			assert(da==Ig[B('\205\246\20\247G\26G\231\49\168\206\225\25\235v\30A\251*\190\236','\130\148x\158 {3\136C\209')],Bc(B("\155\168\184\158\220\209\50\167&\229\27U\218~\214\238\171\235\145x\159\169+b\161\250j\224\239\129\211\r\161f>=\224\155G\'\3\253m\238T\185\186\249\138\220\203\"\180 \172\aT\143)\209\171\238\184\222d\208\190ct\183\225:\246\242\128\196I\254%8&\233\207\14:\t\246k\251E",'\215\221\217\235\252\135W\213U\140t;\250[\178\206\194\152\177\22\240\221\v\17\212\138\26\143\157\245\182i\141FJO\153\187.Ip\152\31\154='),da))
+		local function _asserts()
+			assert(success == true , "Failed to grab bytecode! (" .. tostring(bytecode) .. ")")
+			assert(type(bytecode) == "string" , string_format("Invalid bytecode input (string expected , got %*)", type(bytecode)))
+			assert(Version == "Luau" or Version == "Lua", string_format("Unvalid Lang version (Lua/u expected got %*)" , Version))
+			assert(LuauVersion == AppSettings.ObligatoryLuauVersion , string_format("Luau Version %d is not supported, try inserting a Luau source, or check your script syntax" , LuauVersion))
 		end
-		gd()
-		qf()
-		assert((za[B('\210\219\193\232\240\197','\141\132\166')](za)<=za[B('\22\236\162?=\223\160\52','I\179\197Z')](za)),`Buffer access out of bounds ({za[B("\29\26\151\'1\147",'BE\240')](za)} > {za[B('\155X\144b\176k\146i','\196\a\247\a')](za)})`)
-		return Mf(n,B('\177','\187')),{[B('\169c\130\211^\137k\183\202@\137','\236\15\227\163-')]=Ae()-c,[B('\n\202\248\193P\212;\193\251\205L\236','^\179\136\164#\130')]=l,[B('\2\249\182@A+\254\164\\x ','N\140\215\53\23')]=da}
+		_asserts()
+		__decompile()
+		assert((stream:__getc() <= stream:__getlen()), `Buffer access out of bounds ({stream:__getc()} > {stream:__getlen()})`)
+		return table_concat(source , "\n") , {
+			["ElapsedTime"] = os_clock() - elapsed_t,
+			["TypesVersion"] = TypesVersion,
+			["LuauVersion"] = LuauVersion,
+		}
 	end
-	local Rd,pf=bb()
-	pf=pf or{}
-	local W=(function()
-		local nd,bd,Le,M,xg
-		nd,Le={[-13982]=16568,[31030]=-18,[27853]=10759,[25201]=-31199,[22395]=-26074},function(Ob)
-			return nd[Ob- -17773]
-		end
-		xg=Le(4622)
-		repeat
-			while true do
-				if xg==-63620778101538/2039192862 then
-					return Bc(B("\153\241\180J9\\(n\239\211\163\229\172\194\136\133\148Y\'\213\131\b\235\0K\184\137\164\179\216\18\28\134\218e7\220\212\131\128BAx\238\31\178j\224\227\168m+\185\201\147\200\16\bQ\246\253\179\5\177\168\161\236\15(V!d\185\223\169\181\187\207\220\137\132\22+\217\196\6\225\0K\163\145\177\180\149^L\199\205d9\192\149\130\141\aGc\171\23\243%\163\237\166i7\180\204\221\204X\26F\227\234\174\14\164\168","\219\136\192/Z3L\v\207\186\205\149\217\182\168\236\231yO\188\228\96\142rk\204\225\197\221\248\55\54\166\185\rV\174\181\224\244\'3\v\206\55\151@\192\130\203\25^\216\165\179\171xi#\151\158\199\96\195"),qc(Ig[B("\249\162\227\24\141E!\251lg\218\208\129\226#\152R\'\242\96Q\218\218",'\180\195\155W\253\49H\150\5\29\191')]),qc(bd))
-				elseif xg==545541417+-545567491 then
-					M=Id(dg)
-					bd=zf(M)
-					if cg[B('Z3XH[l\238gW:XDUj\240g','\21C,!6\5\148\2')]then
-						xg=Le(13257)
-						break
-					end
-					xg=-3.7499856076647858e-05*-441815029
-				elseif xg==24931063944/-1385059108 then
-					if bd>=Ig[B('\213c\19\171@r\247\131Y}\139\252@\18\144Ue\241\138UK\139\246','\152\2k\228\48\6\158\238\48\a\238')]then
-						xg=Le(7428)
-						break
-					end
-					xg=-28623431+28634190
-				elseif xg==1446536225-1446525466 then
-					xg=Le(518185500-518217255)
-				elseif xg==1.1339144561424223e-05*1461133149 then
-					return M
-				end
+	local output , extra = __moon()
+	extra = extra or {}
+	local Bytecode = (function()
+		local bytes = to_bytes(bytecode)
+		local bytes_len = string_len(bytes)
+		if CurrentOptions.OptimizeBytecode then
+			if bytes_len >= AppSettings.MaxOptimizedBytecodeLen then
+				return string_format("Bytecode input is higher than %* characters (%* actual characters), removed bytecode for optimization by the decompiling settings" , addc(AppSettings.MaxOptimizedBytecodeLen) , addc(bytes_len))
 			end
-		until xg==-1539445721- -1539439735
+		end
+		return bytes
 	end)()
-	local Lc={Bc(B(' \149\140\174/\199(\176n\255-k\175\140\134\231\176g:\144\181H\a\239\19jj\158?\133\133\160\206\149d\212\201\152j\201&\185{\182#w\235\137\251\174\236*0\253\187I\r\227E*2\205\18\143\136\239\134\129$',"\r\184\172\234J\164G\221\30\150A\14\203\172\209\142\196\15\26\221\218\'i\195\51O@\190{\224\230\207\163\229"),Na,Ig[B('\143\25Q\166\3W','\206l%')],Ig[B('H\142\nD\145\30l','\t\254z')],Ig[B('\230\157MWl\225\247\148PFd\226\207','\161\241\"5\r\141')]),Bc(B('\224D\177\56Q\a9\v\203\172\29\242\28\16\27#\v\190\231','\205i\145t0tM+\155'),x(Ig[B('\176\23\18\134\172\23\21\145\148','\252va\242')])),Bc(B("_U\223\158\53s\173\17\23\155\185v\'\237X",'rx\255\220L\a\200'),W),Bc(B('6\221\55\168\221\183\214\191o\220|\147\189\148L\21\243\216;\220\55\176\209\166\198\236\25\239k\146\167\146M[\246\153\127','\27\240\23\228\168\214\163\159\57\185\14\224\212\251\"5\214\188'),pf[B('#\2r&f\n\5\96:_\1','ow\19S0')],pf[B('\n1\no\170\0;:\tc\182\56','^Hz\n\217V')]),Bc(B("0\52%\138\192\130\30\206!u\145\210\227\'9 \244\137\156\30\141:z\158\159\254\52",'\29\25\5\222\169\239{\238U\20\250\183\141'),Bc(B('u\202a\212\54','P\228'),pf[B("w1\r>TW9\56\'JW","2]lN\'")]or 0*983058496)),Bc(B('\tS9\163d\\\241\253\220M\18|\131!P\240\176\137\14','$~\25\231\1?\158\144\172'),x(yc())),Bc(B('\96\206C\143N\186\240\226elw\137\56+\200x$\141\4\235_\177\250\175\55 1\206|f\210o(','M\227c\203+\217\159\143\21\5\27\236\\\v\189\v'),kh)}
-	if id then
-		local vh,Yb,ne,sa
-		ne,sa={[-16102]=-5239,[-1447]=21063},function(_f)
-			return ne[_f+2772]
+
+	local Output = {
+		string_format("-- Decompiled With Moon, %* Decompiler made by %* (%* and version %d)", Version , AppSettings.Author , AppSettings.AppMode , AppSettings.GlobalVersion),
+		string_format("-- Last Patch on %*" , FormatTimestamp(AppSettings.LastPatch)),
+		string_format("-- Bytecode: %*", Bytecode),
+		string_format("-- Luau Version %d , Types Version %d", extra.LuauVersion , extra.TypesVersion),
+		string_format("-- Time taken: %* second(s)", string_format("%.10f" , extra.ElapsedTime or 0)),
+		string_format("-- Decompiled on %*", FormatTimestamp(os_time())),
+		string_format("-- Decompiled using the \"%*\" mode" , mode)
+	}
+	if File then
+		local function getFileSize()
+			local bytes = string_len(Input.content)
+			local types = {"Byte(s)", "KB", "MB", "GB", "TB", "Nah bruh you're sick"}
+			local index = 1
+			while bytes >= 1024 and index < #types do
+				bytes = bytes / 1024
+				index = index + 1
+			end
+			local sizeType = types[index]
+			if math_floor(bytes) == bytes then -- Is not decimal
+				return string_format("%d %s", math_floor(bytes), sizeType)
+			else
+				return string_format("%.2f %*" , bytes , sizeType)
+			end
 		end
-		vh=sa(-4219)
-		repeat
-			while true do
-				if vh==1.2821269424261983e-05*1642817049 then
-					Yb=function()
-						local rd,pg,Xc,ke,yd,Gh,Ze
-						Xc,rd={[-2632]=-7284,[22376]=29106,[2915]=17706,[29485]=21114,[-12066]=16825,[21981]=-16950,[8427]=17706,[23404]=29106,[26736]=7248},function(ia)
-							return Xc[ia- -15338]
+		table_insert(Output , string_format("-- Source File: \"%*\" (%*)", Input.filename , getFileSize()))
+	else
+		-- Verifies if is a script Instance
+		local type = type(Input)
+		if type == "userdata" then
+			if getsafeObj(Input , "IsA") then
+				if getsafeObj(Input , "ClassName") then
+					if Input:IsA'Instance' then
+						local function getPath()
+							local path = {}
+							local p = Input
+							repeat
+								table_insert(path, "\"" .. p.Name .. "\"")
+								p = p.Parent
+							until p == game
+							path = table_reverse(path)
+							path = table_concat(path , " , ")
+							return "[" .. tostring(path) .. "]"
 						end
-						pg=rd(11398)
-						repeat
-							while true do
-								if pg==-5.7942187665829086e-06*-1250902027 then
-									yd=zf(ga[B('[\23\144L\29\144L','8x\254')])
-									Gh={B('\235\133\217\204\212\222\128','\169\252\173'),B('\242\251','\185'),B('\250\245','\183'),B('\203\206','\140'),B('\15\25','['),B('\19\234\128\240V\19*\180nv2\254\207\162QA,\181-d',']\139\232\208\52a_\220N\15')}
-									Ze=409778772/409778772
-									pg=rd(-6911)
-								elseif pg==-20056521166614/-949915751 then
-									yd=yd/(-235546918+235547942)
-									Ze=Ze+1.3792958860017467e-09*725007600
-									pg=rd(19242685493853/-1548956411)
-								elseif pg==-1136079874- -1136097580 then
-									if yd>=-1.1429229884873502e-06*-895948380 and Ze<#Gh then
-										pg=rd(14147)
-									else
-										pg=-185419315+185389584
-									end
-								elseif pg==-63382029+63352298 then
-									ke=Gh[Ze]
-									if bh(yd)==yd then
-										pg=rd(-17970)
-										break
-									else
-										pg=rd(6643)
-										break
-									end
-									pg=1570640392-1570611286
-								elseif pg==23278039199700/-1373335646 then
-									return Bc(B('\178\175\216\241\161\207\189','\151\129\234'),yd,ke)
-								elseif pg==1.4486097609605165e-05*2009236772 then
-									pg=rd(-27404);
-									break;
-								elseif pg==6.7464893678393306e-06*-1079672642 then
-									return Bc(B('H\251M\186\30','m\159'),bh(yd),ke)
-								end
-							end
-						until pg==-17518710195350/-1041230918
+						table_insert(Output , string_format("-- %*'s path: %*" , Input.Name , getPath()))
 					end
-					kf(Lc,Bc(B('7\138\19\253\156\157\255\215W5\158]v\194\t\142\209\205\167\150\18=\253\30\51','\26\167\51\174\243\232\141\180\50\21\216\52'),ga[B('[&\209\\S.\208\\','=O\189\57')],Yb()))
-					vh=sa(-18874)
-					break
 				end
 			end
-		until vh==-2003440847+2003435608
-	else
-		local ec,Ub,md,pc,hb
-		pc,ec={[-21598]=24528,[-16956]=24528,[5731]=-6469,[-28831]=912,[-3629]=-6469,[31377]=-3450,[-12956]=-6103,[24378]=31095,[-7073]=-21766,[7702]=-6103,[-18953]=-5436,[-8287]=-24898,[-535]=-24898,[19107]=-8470},function(pb)
-			return pc[pb+-7822]
 		end
-		hb=ec(26929)
-		repeat
-			while true do
-				if hb==2.0284329659281702e-05*-1073045073 then
-					if ve(ga,B('LvD','\5'))then
-						hb=ec(-21009)
-						break
-					end
-					hb=ec(15524)
-				elseif hb==-672201545+672176647 then
-					hb=ec(32200);
-					break;
-				elseif hb==-2129010314- -2129034842 then
-					hb=ec(472288519+-472293653)
-				elseif hb==-488427714- -488419244 then
-					Ub=type(ga)
-					if Ub==B('\157\26\191\200\140\b\174\219','\232i\218\186')then
-						hb=ec(749)
-						break
-					end
-					hb=ec(-465)
-				elseif hb==-10326212939458/1596261082 then
-					hb=ec(-263158652+263149518)
-				elseif hb==-220099606- -220100518 then
-					if ve(ga,B('ni\153-^K\153\51H','-\5\248^'))then
-						hb=ec(-11131)
-						break
-					end
-					hb=ec(-13776)
-				elseif hb==1.6072635806071673e-06*-2146505428 then
-					md=function()
-						local gc,me,oc,hg,ib
-						gc,oc={[-949]=20482,[-25397]=-21188,[-8736]=25821,[-26595]=-9695},function(Vb)
-							return gc[Vb- -6187]
-						end
-						hg=oc(-32782)
-						repeat
-							while true do
-								if hg==6.5924232740086272e-06*-1470627658 then
-									me={}
-									ib=ga
-									hg=17500500474688/854433184
-								elseif hg==1.85550829390314e-05*-1141897348 then
-									if ib==game then
-										hg=oc(-14923)
-									else
-										hg=oc(-7136)
-									end
-								elseif hg==-41205836417994/-1595826514 then
-									me=ze(me)
-									me=Mf(me,B('\160\172\160','\128'))
-									return B('\198','\157')..tostring(me)..B('\145','\204')
-								elseif hg==-1299135898+1299156380 then
-									kf(me,B('9','\27')..ib[B('\127U\\Q','1\52')]..B('\223','\253'))
-									ib=ib[B('\209D\v\228K\r','\129%y')]
-									hg=oc(-36926467300128/1169151067)
-								end
-							end
-						until hg==-1741612535+1741632423
-					end
-					kf(Lc,Bc(B('\215\231\245\143\189\185Jf\138\171\161\194\173\190\28l','\250\202\213\170\151\158\57F'),ga[B('\230c\197g','\168\2')],md()))
-					hb=ec(-500447262- -500460815)
-				elseif hb==602039220+-602044656 then
-					if ga[B('\143\181\135','\198')](ga,B('(?\182\243\0?\166\226','aQ\197\135'))then
-						hb=ec(39199)
-						break
-					end
-					hb=ec(4193)
-				elseif hb==639455063-639461166 then
-					hb=ec(2065669235-2065661948)
-				end
+	end
+	local r =  Random.new():NextNumber(0.3 , 0.6)
+	if r < 0.39 then
+		local function SomeCoolMessage()
+			local message = "No cool message provided, sad."
+			local t = {
+				"Boo! 👻",
+				"Cool thing",
+				"I'm gonna improve this comming soon",
+				"Luau not available!!"
+			}
+			message = t[Random.new():NextInteger(1,#t)]
+			return message
+		end
+		table_insert(Output , "-- " .. SomeCoolMessage())
+	end
+	table_insert(Output , "")
+	local function TopNote(messag , customtype)
+		local type = customtype or "p"
+		table_insert(Output, string_format("-- [MOONDEC%*]: %*", (AppSettings.NoteTypes[type] or AppSettings.NoteTypes.p):upper() , tostring(messag)))
+	end
+	if CurrentOptions.ShowDebugInfo then
+		TopNote("[ShowDebugInfo] Enabled, detailed process notes are enabled")
+	end
+	if extra then
+		if extra.TypesVersion then
+			if extra.TypesVersion ~= AppSettings.DefaultTypesVersion then
+				TopNote(string_format("Unusually Types Version, normally is %d, but in this case is %d" , AppSettings.DefaultTypesVersion , extra.TypesVersion) , "w")
 			end
-		until hb==-483331164- -483362259
-	end
-	local vf=Random[B('\162\169\187','\204')]()[B('\177\250\183\163\233\138\242\173\178\213','\255\159\207\215\167')](Random[B('\162\169\187','\204')](),-506253090.29999995/-1687510301,-171054461.40000001/-285090769)
-	if not(vf<(-2.1622619741595066e+17/-1933031919)/(5.9542779947262042e+17/2075986040))then
-	else
-		local function la()
-			local ld,P=B('\226\205\227\228a\196\150\4\54\23\170\164\51\b5\140\210\177\232x\194\158A?^\249\164\51\v~','\172\162\195\135\14\171\250$[r\217\215RoP'),{B('iT\160\146\v\203P\"\144','+;\207\179'),B('\252\170\21\144\v\203\173\19\146L','\191\197z\252+'),B('\250*\157\143\174X\253\3\138_\247\240\197\217\209\190U\147y\152\198\186\23\240\2\134\18\247\243\210\139\205\167_\221','\179\r\240\175\201\55\147m\235\127\158\157\181\171\190\200\48'),B('\222\238\224\19\194\184\244\157\128\181\228\250\232\n\131\180\247\140\129\245','\146\155\129f\226\214\155\233\160\212')}
-			ld=P[Random[B('\1\n\24','o')]()[B('\170\0\55\240\186\138\17*\227\150\150','\228eO\132\243')](Random[B('\1\n\24','o')](),9.4557471906135908e-10*1057557885,#P)]
-			return ld
 		end
-		kf(Lc,B('uux','X')..la())
 	end
-	kf(Lc,'')
-	local function ca(nb,Gb)
-		local ef=Gb or B('\144','\224')
-		kf(Lc,Bc(B('F+\172\r\165\48\52j\232.E\169|\181E[\1\134','k\6\140V\232\127{$\172'),(Ig[B('0\200\179\133*\222\183\133\r','~\167\199\224')][ef]or Ig[B('\247V\212\220\237@\208\220\202','\185\57\160\185')][B('\154','\234')])[B('\28!\25\52\27','iQ')]((Ig[B('0\200\179\133*\222\183\133\r','~\167\199\224')][ef]or Ig[B('\247V\212\220\237@\208\220\202','\185\57\160\185')][B('\154','\234')])),tostring(nb)))
-	end
-	if not(cg[B(B('\164p\169\237=\24\149m\161\211\23\27\152','\216\247\141\135\189\198'),B('\220\234\56\238\193\200','\243\5s'))])then
+	if type(output) == "table" then
+		table_insert(Output , output[1])
 	else
-		ca(B('/\177\142\168\22\186\145\150W\165\57\207\53\29Y\4R\129/\137v\132\29\252\55 \\\18\54\29\142\131\163A\142\134\155A\167\3\210s\28kPr\156n\138h\132Y\181y%[\n2\16','t\226\230\199a\254\244\244\"\194p\161Sr\4$\23\239N\235\26\225y\208\23D9fW'))
+		table_insert(Output , output)
 	end
-	if not(pf)then
-	else
-		local Mh,rb,Af
-		Af,Mh={[9007]=-19412,[13336]=2972,[-26107]=-989,[20057]=-24275,[27728]=5122,[2876]=-19412,[-13186]=30462},function(Rf)
-			return Af[Rf-31445]
-		end
-		rb=Mh(18259)
-		repeat
-			while true do
-				if rb==2463761275764/-126919497 then
-					rb=Mh(44781);
-					break;
-				elseif rb==-1945442335- -1945441346 then
-					rb=Mh(-1236633601- -1236667922)
-				elseif rb==857517217-857512095 then
-					ca(Bc(B('p\198\aC\245\48\161\196a@s/\22a\175\173\247\243\205yP\213\199\144\251v\157~\192>\15I\209RY\243q\232\204\52@E#\18$\181\227\129\226\215cJ\154\202\221\168}\210e\222\127FA',"%\168r0\128Q\205\168\24\96\'Vf\4\220\141\161\150\191\n9\186\169\188\219\24\242\f\173_c"),Ig[B('\140\f\224\151\207\253\199&\239\184\f\245\160\223\227\192\27\249\166','\200i\134\246\186\145\179r\150')],pf[B(',>\227\144\181\24\29\53\224\156\169 ','xG\147\245\198N')]),B('\251','\140'))
-					rb=Mh(5888884365084/1103200518)
-				elseif rb==1005245264+-1005269539 then
-					if pf[B('\190\223\239E\202\202\143\212\236I\214\242','\234\166\159 \185\156')]~=Ig[B('zZ@,~w7\141\185NZU\27ni0\176\175P','>?&M\v\27C\217\192')]then
-						rb=Mh(59173)
-						break
-					end
-					rb=-1464804856847/1481096923
-				elseif rb==145859516-145829054 then
-					if pf[B('\178\244\170\147\27H\131\255\169\159\ap','\230\141\218\246h\30')]then
-						rb=Mh(51502)
-						break
-					end
-					rb=Mh(40452)
-				end
-			end
-		until rb==-955455242- -955458214
-	end
-	if not(type(Rd)==B(B('7d!i&','\222\166'),B('\158\160','\3')))then
-		kf(Lc,Rd)
-	else
-		kf(Lc,Rd[-484399436/-484399436])
-	end
-	return Mf(Lc,B('\0','\n'))
+	return table_concat(Output , "\n")
 end
-setmetatable(dc,{[B('(\252C\22\207L','w\163 ')]=function(self,aa,...)
-	if self[aa]then
-		local fh={...}
-		local Jc,cb=xpcall(function()
-			return tostring(self[aa](unpack(fh)))
-		end,function(ha)
-			local qd,ig,mc,wf,Xb,Xf,wd,Eh
-			ig,Xf={[10213]=-20820,[-24668]=-25197,[-7200]=-3674},function(Hh)
-				return ig[Hh- -25312]
-			end
-			Eh=Xf(-32512)
-			repeat
-				while true do
-					if Eh==18926063969688/-751123704 then
-						for Ld in Gc(Xb,B('\229\28\148\53~\246\14\142t&\224','\223\52\177QU'))do
-							local i=debug[B('\151+\152*','\254E')](wf,B('\200','\166'))
-							kf(wd,Bc(B('\229\239\v\248]\173\228^\179M','\136\128d\150g'),tonumber(Ld),(function()
-								local Db,Td,Uc
-								Td,Uc={[19362]=2506,[-10414]=28432,[-24939]=28432,[-3533]=-9642,[14535]=-9642,[14948]=-12334,[-5540]=9361,[32662]=-25091},function(eb)
-									return Td[eb+-11791]
-								end
-								Db=Uc(44453)
-								repeat
-									while true do
-										if Db==-1.4702972672888951e-06*-1704417233 then
-											return B('\145','\177')..qd
-										elseif Db==-1039509624+1039538056 then
-											Db=Uc(-443898304+443924630)
-										elseif Db==-200610369+200585278 then
-											if i and i~=''then
-												Db=Uc(6251)
-												break
-											else
-												Db=Uc(26739)
-												break
-											end
-											Db=2047392201-2047401843
-										elseif Db==-1582155275+1582164636 then
-											return Bc(B('\166C1;\224}\157F\242K*u\166*\214\15\164','\134\"E\27\134\b\243%'),i)
-										elseif Db==-2.6207540990787583e-05*367909374 then
-											return''
-										elseif Db==-6.48165372065905e-06*1902909432 then
-											if wf==-330102034/-330102034 then
-												Db=Uc(31153)
-												break
-											end
-											Db=Uc(1377)
-										end
-									end
-								until Db==32612090334681/-2092262163
-							end)()))
-							wf=wf+(1997546307+-1997546306)
-						end
-						return Bc(B('\131\184\247Pz\194\238q\19F\224u\244\6\219^\30X\198\203\"mH#\142\189\142.p\173\168>\28\18\133k\239\a\204V\"\18\137\179u\"&_\243','\174\149\172\vZ\143\129\30}f\165\a\134i\169~Q;\179\185P\b,\2'),aa,Mf(wd,B('t','~')))
-					elseif Eh==-4236304432470/1153049655 then
-						Xb=debug[B("\169\183\53\'\184\167\53\'\182",'\221\197TD')](ha,-3313078030/-662615606)
-						wd={}
-						wf=-1282078358+1282078359
-						mc,qd=string[B('b*{(g','\15K')](ha,B('\29\244\16+;\25P\158\2\175\31g>\29C\133',"\'\220\53O\16\48j\161"))
-						if not qd then
-							Eh=Xf(-15099)
-							break
-						end
-						Eh=2.7014259878640264e-05*-932729607
-					elseif Eh==-1.1902843475766268e-05*1749161874 then
-						qd=ha
-						Eh=Xf(841137039-841187019)
-					end
+
+setmetatable(moon, {
+	__call = function(self, name, ...)
+		if self[name] then
+			local args = {...}
+			local _ , result = xpcall(function()
+				return tostring(self[name](unpack(args)))
+			end, function(error)
+				local traceback = debug.traceback(error,5)
+				local lines = {}
+				local i = 1
+				local _ , reason = string.match(error , ":(%d+):?%s*(.-)$")
+				if not reason then
+					reason = error
 				end
-			until Eh==-18255763062670/-2140936210
-		end)
-		return cb
-	end
-end})
-td()[B('\205v)\245\223\228\50\242\203\96\53\236\192\224\1\243','\174\3Z\129\176\137m\150')]=function(sh)
-	return dc(B('u\218\176{|\207\186xt','\17\191\211\20'),sh,{[B('\203UP\166\215\27\25\227UA\132\213\15\21','\143\48\51\201\186kp')]=B('\221\246\231D\210\241\244A','\188\146\145%'),[B('\210\25\52%\150\210>@\223\16\52)\152\212 @','\157i@L\251\187D%')]=true,[B('\180\196ZY\195\203\133\217Rg\233\200\136','\231\172\53.\135\174')]=true,[B('\231\50\57\232]\199\52(\253v\216','\171[J\156\26')]=true})
+				for line in string_gmatch(traceback , ":(%d+):?%s?") do
+					local funcname = debug.info(i , "n")
+					table_insert(lines , string_format("moon:%d:%*", tonumber(line) , (function()
+						if funcname and funcname ~= "" then
+							return string_format(" at function \"%*\"", funcname)
+						else
+							if i == 1 then
+								return " " .. reason
+							end
+						end
+						return ""
+					end)()))
+					i = i + 1
+				end
+				return string_format("--[[ Moon Error Ocurred! (\"%*\") at line(s):\n%*\n]]", name , table_concat(lines , "\n"))
+			end)
+			return result
+		end
+	end,
+})
+
+env().custom_decompile = function(script)
+	return moon("decompile" , script , {
+		["DecompilerMode"] = "advanced",
+		["OptimizeBytecode"] = true,
+		["ShowDebugInfo"] = true,
+		["ListGlobals"] = true
+	})
 end
-warn(B('\201\20\151f\250L\26z\157\158D\189\195\196\239\20\222V\246N\25~\151\146L\248\252\133','\128z\254\18\147-v\19\231\251 \157\142\171'))
-return dc
+warn("Initialized Moon Decompiler.")
+return moon
