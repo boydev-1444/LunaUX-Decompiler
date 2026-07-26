@@ -10,10 +10,14 @@
 
 > **Disclaimer:** LunaUX is still in beta, it is not 100% perfect. This decompiler will receive regular updates to fix all those bugs. 
 
-# Requirements
-- Python 3.13.2.
-- The g++ compiler.
+# Requirements (Windows)
+- Python 3.13
 - All the requirements in the `requirements.txt` file.
+
+# Requirements (Linux)
+- Python 3.12
+- All the requirements in the `requirements.txt` file.
+
 
 # Installing
 
@@ -131,8 +135,6 @@ Commands:
 
 # Compiling CLI by yourself
 
-- The CLI application is already compiled and you can find it in the releases tab.
-
 - ### Windows
 ```shell
 g++ CliApp.cpp -o CLI.exe -std=c++20 -O2 -s -lws2_32
@@ -140,5 +142,5 @@ g++ CliApp.cpp -o CLI.exe -std=c++20 -O2 -s -lws2_32
 
 - ### Linux
 ```bash
-x86_64-w64-mingw32-g++ CliApp.cpp -o CLI.exe -std=c++20 -O2 -s -lws2_32
+x86_64-w64-mingw32-g++ CliApp.cpp -o CLI -std=c++20 -O2 -s -lws2_32
 ```
